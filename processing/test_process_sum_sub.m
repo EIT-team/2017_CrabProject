@@ -103,17 +103,9 @@ Data_seg=zeros(length(T_trig),size_bin,length(Good_ch));
 for iTrig=1:length(T_trig)
     Data_seg(iTrig,:,:)= Data([T_trig(iTrig)-floor(size_bin/2):T_trig(iTrig)+ceil(size_bin/2)-1],:);
 end
-% EP is now Repeats x Samples x Channels
-
-% average all the EP chunks across repeats of EPs
-% EP_dz_avg=(squeeze(mean(EP_dz,1)));
-% EP_dz_avg = EP_dz_avg - repmat(EP_dz_avg(end,:),size(EP_dz_avg,1),1);
-% EP_avg=detrend(squeeze(mean(EP,1)));
-% %EP_avg is now Samples x Channels
 
 
-
-%%
+%% plot all segments
 
 % for iTrig = 1:length(T_trig)
 %
@@ -122,7 +114,7 @@ end
 % pause
 %
 % end
-%%
+%% 
 
 cur_chn=1;
 cur_chn_label=str2double(HDR.Label{cur_chn});
@@ -131,40 +123,37 @@ fprintf('Processing #%d elec %d\n',cur_chn,cur_chn_label)
 
 Y=squeeze(Data_seg(:,:,cur_chn))';
 
+%remove bad repeats, or make it the right number
 bad_trigs=1:4;
-
 Y(:,bad_trigs)=[];
 
 
 A = detrend(Y(:,1:2:end-2),'constant');
 B = detrend(Y(:,2:2:end-2),'constant');
 C = detrend(Y(:,3:2:end),'constant');
-%%
+%% get EP signal
 
 stim_window_ep=[24860 25050];
 
+% summation subtraction to get EPs
 EP = detrend(-(A+B)/2,'constant');
-dV_sig_orig =(A-2*B+C)/4;
-% dV_sig =(A-B)/2;
 
-
-
+% replace stim artefact with 0s for ease of plotting
 EP(stim_window_ep(1):stim_window_ep(2),:)=0;
 EPm=mean(EP,2);
 
-
-
-
+%% get EIT signal 
+dV_sig_orig =(A-2*B+C)/4; % kirills linear fit way
+% dV_sig =(A-B)/2;
 
 dV_sig=dV_sig_orig;
 
-
-%%
 stim_window_dz=[24860 24980];
 
+% patch bit of the signal which has the stim artefact in it with a "good"
+% sine wave. This reduces the sti artefact in the dZ, but we ignore this
+% anyways
 for iRep = 1:size(dV_sig,2)
-
-
 
 cur_dV_sig=(dV_sig(:,iRep));
 [pks,locs]=findpeaks(cur_dV_sig,'MinPeakProminence',max(cur_dV_sig(1:floor(stim_window(1)/2))*0.98));
@@ -181,25 +170,20 @@ patch_window=stim_window_dz-(locs(loc_stim_idx)-locs(loc_good_idx));
 % hold off
 
 cur_dV_sig(stim_window_dz(1):stim_window_dz(2)) = cur_dV_sig(patch_window(1):patch_window(2));
-
 dV_sig(:,iRep)=cur_dV_sig;
 
 end
 
-
-%%
-
-
+%% demodulate to get dZ signal 
 
 dV_sigF=dV_sig;
 
-for iFilt = 1:1
+FiltReps=1; % apply filter a different number of times - reduce filter ripple?
+for iFilt = 1:FiltReps
     
     dV_sigF=filtfilt(d,dV_sigF);
     
 end
-
-
 
 dV=abs(hilbert(dV_sigF));
 
@@ -209,13 +193,13 @@ dV=abs(hilbert(dV_sigF));
 % plot(dV,'b');
 % hold off
 
-trim=700;
+% replace ends of signal to make the next detrends work better
 
+trim=700;
 dV([1:trim],:)=dV([trim+1:2*trim],:);
 dV([end-trim:end],:)=dV([end-2*trim:end-trim],:);
 
 dV=detrend(dV);
-
 
 dV(stim_window_dz(1):stim_window_dz(2),:)=0;
 
