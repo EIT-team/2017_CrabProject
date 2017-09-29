@@ -1,0 +1,537 @@
+close all
+clear all
+
+%%
+
+input_files = dir('*.mat');
+
+num_files = size(input_files,1);
+
+input_data = {};
+
+for i = 1:num_files
+    
+    input_data{i} = load(input_files(i).name, 'dV_all', 'EP_all', 'T');
+    input_data{i}.filename = input_files(i).name;
+end
+
+%%
+%num_channels = size(input_data{1}.dV_all,2);
+num_channels = 15;
+
+% create empty array
+avg_EP_Nerv1 = [];
+avg_EP_Nerv2 = [];
+avg_EP_Nerv3 = [];
+
+avg_EP_3Nerv = [];
+
+avg_dV_Nerv1 = [];
+avg_dV_Nerv2 = [];
+avg_dV_Nerv3 = [];
+
+avg_dV_3Nerv = [];
+
+%% For Graphs later
+% Defining the time interval
+
+T_Struct = load (input_files(1).name , 'T' );
+T = T_Struct.T; % This is pulling the file out of the structure into the array.
+
+%%
+%1st Nerve - Average from Duplicates
+for i = 1:num_channels
+            
+    data_to_avg_EP_Nerv1 = [];
+    data_to_avg_dV_Nerv1 = [];
+    
+    trials_to_avg_Nerv1 = [1 2];
+    
+    
+    for j = trials_to_avg_Nerv1
+        
+        data_to_avg_EP_Nerv1(:,j) = input_data{j}.EP_all(:,i);
+       
+    end
+    
+    avg_EP_Nerv1 (:,i) = mean ( data_to_avg_EP_Nerv1 , 2 );
+     
+    
+    for j = trials_to_avg_Nerv1
+        
+        data_to_avg_dV_Nerv1(:,j) = input_data{j}.dV_all(:,i);
+        
+    end
+    
+    avg_dV_Nerv1(:,i) = mean(data_to_avg_dV_Nerv1,2);
+        
+end
+
+%loop over all channels
+figure;
+hold on
+
+plot ( T , avg_EP_Nerv1 (:,1), 'Linewidth', 2.0) ;
+plot ( T , avg_EP_Nerv1 (:,2:3), 'Linewidth', 3.0) ;
+plot ( T , avg_EP_Nerv1 (:,4:5),  '--' , 'Linewidth', 1.5) ;
+plot ( T , avg_EP_Nerv1 (:,6:15), 'Linewidth', 1.0) ;
+
+%set(gca,'XTickLabel',a,'FontName','Helvetica','fontsize',24);
+ a=findobj(gcf); % get the handles associated with the current figure
+ 
+ allaxes=findall(a,'Type','axes');
+ %alllines=findall(a,'Type','line');
+ alltext=findall(a,'Type','text');
+ 
+set(allaxes,'FontName','Arial','FontWeight','Bold','LineWidth',2,...
+     'FontSize',14);
+%set(alllines,'Linewidth',1.5);
+set(alltext,'FontName','Arial','FontWeight','Bold','FontSize',14);
+ 
+% Legends
+xlabel ('Time (ms)' , 'fontsize' , 20 );
+ylabel ('Voltage (uv)' , 'fontsize' , 20);
+ 
+xlims = [-5 30];
+xlim (xlims);
+ 
+ylims = [-1000 11500];
+ylim (ylims);
+ 
+%Lines to help guide.
+ 
+signal_wind=[2.5 10];
+%Above line is specifying area of baseline to be analysed for Std. Dev. Don't get too close to edges. 
+
+baseline_wind=[-27.5 -5]; 
+%Above line is specifying area of baseline to be analysed for area of interest. 
+
+plot ([signal_wind(1) signal_wind(1)] , [-2000 11500] , 'k--' , 'Linewidth' , 1  )
+plot ([signal_wind(2) signal_wind(2)] , [-2000 11500] , 'k--' , 'Linewidth' , 1  )
+plot ([7 7] , [-2000 11500] , 'r--.' , 'Linewidth' , 1.5  )
+
+legend ( { 'E1-Bath' , 'E7-Rec1' , 'E8-Rec2' , 'E9-EIT1' , 'E10-EIT2' , 'E11-Rec5' , 'E12-Rec6' , 'E13-Rec7' , 'E14-Rec8' , 'E15-Rec9' , 'E16-Rec10' , 'E17-Rec11' , 'E18-Rec12' , 'E19-Rec13' , 'E20-Rec14' , 'Start of Window', 'End of Window' , 'EIT Value' } , 'FontWeight' , 'normal', 'FontSize' , 7)
+title('Nerve 1 -- Graph of Compound Action Potential on Multiple Electrodes over Time')
+grid
+
+hold off %Completes this figures and stops anything being over-written onto it.
+
+%%
+%2nd Nerve - Average from Duplicates
+for i = 1:num_channels
+            
+    data_to_avg_EP_Nerv2 = [];
+    data_to_avg_dV_Nerv2 = [];
+    
+    trials_to_avg_Nerv2 = [3 4];
+    
+    
+    for j = trials_to_avg_Nerv2
+        
+        data_to_avg_EP_Nerv2(:,end+1) = input_data{j}.EP_all(:,i);
+       
+    end
+    
+    avg_EP_Nerv2 (:,i) = mean ( data_to_avg_EP_Nerv2 , 2 );
+       
+    
+    for j = trials_to_avg_Nerv2
+        
+        
+        data_to_avg_dV_Nerv2(:,end+1) = input_data{j}.dV_all(:,i);
+        
+    end
+    
+    avg_dV_Nerv2(:,i) = mean(data_to_avg_dV_Nerv2,2);
+        
+end
+
+figure;
+hold on
+
+plot ( T , avg_EP_Nerv2 (:,1), 'Linewidth', 2.0) ;
+plot ( T , avg_EP_Nerv2 (:,2:3), 'Linewidth', 3.0) ;
+plot ( T , avg_EP_Nerv2 (:,4:5),  '--' , 'Linewidth', 1.5) ;
+plot ( T , avg_EP_Nerv2 (:,6:15), 'Linewidth', 1.0) ;
+
+%set(gca,'XTickLabel',a,'FontName','Helvetica','fontsize',24);
+ a=findobj(gcf); % get the handles associated with the current figure
+ 
+ allaxes=findall(a,'Type','axes');
+ %alllines=findall(a,'Type','line');
+ alltext=findall(a,'Type','text');
+ 
+set(allaxes,'FontName','Arial','FontWeight','Bold','LineWidth',2,...
+     'FontSize',14);
+%set(alllines,'Linewidth',1.5);
+set(alltext,'FontName','Arial','FontWeight','Bold','FontSize',14);
+ 
+% Legends
+xlabel ('Time (ms)' , 'fontsize' , 20 );
+ylabel ('Voltage (uv)' , 'fontsize' , 20);
+ 
+xlims = [-5 30];
+xlim (xlims);
+ 
+ylims = [-1000 11500];
+ylim (ylims);
+ 
+%Lines to help guide.
+ 
+signal_wind=[2.5 10];
+%Above line is specifying area of baseline to be analysed for Std. Dev. Don't get too close to edges. 
+
+baseline_wind=[-27.5 -5]; 
+%Above line is specifying area of baseline to be analysed for area of interest. 
+
+plot ([signal_wind(1) signal_wind(1)] , [-2000 11500] , 'k--' , 'Linewidth' , 1  )
+plot ([signal_wind(2) signal_wind(2)] , [-2000 11500] , 'k--' , 'Linewidth' , 1  )
+plot ([7 7] , [-2000 11500] , 'r--.' , 'Linewidth' , 1.5  )
+
+legend ( { 'E1-Bath' , 'E7-Rec1' , 'E8-Rec2' , 'E9-EIT1' , 'E10-EIT2' , 'E11-Rec5' , 'E12-Rec6' , 'E13-Rec7' , 'E14-Rec8' , 'E15-Rec9' , 'E16-Rec10' , 'E17-Rec11' , 'E18-Rec12' , 'E19-Rec13' , 'E20-Rec14' , 'Start of Window', 'End of Window' , 'EIT Value' } , 'FontWeight' , 'normal', 'FontSize' , 7)
+title('Nerve 2 -- Graph of Compound Action Potential on Multiple Electrodes over Time')
+grid
+
+hold off %Completes this figures and stops anything being over-written onto it.
+
+ %%
+ %3rd Nerve - Average from Duplicates
+ for i = 1:num_channels
+             
+    data_to_avg_EP_Nerv3 = [];
+    data_to_avg_dV_Nerv3 = [];
+     
+    trials_to_avg_Nerv3 = [5 6];
+    
+    
+    for j = trials_to_avg_Nerv3
+        
+        data_to_avg_EP_Nerv3(:,end+1) = input_data{j}.EP_all(:,i);
+     
+    end
+    
+    avg_EP_Nerv3 (:,i) = mean ( data_to_avg_EP_Nerv3 , 2 );
+     
+    
+    for j = trials_to_avg_Nerv3
+        
+    
+         data_to_avg_dV_Nerv3(:,end+1) = input_data{j}.dV_all(:,i);
+    
+    end
+     
+    avg_dV_Nerv3(:,i) = mean(data_to_avg_dV_Nerv3,2);
+         
+ end
+
+% Plot figure for a sanity check...
+
+figure;
+hold on
+
+plot ( T , avg_EP_Nerv3 (:,1), 'Linewidth', 2.0) ;
+plot ( T , avg_EP_Nerv3 (:,2:3), 'Linewidth', 3.0) ;
+plot ( T , avg_EP_Nerv3 (:,4:5),  '--' , 'Linewidth', 1.5) ;
+plot ( T , avg_EP_Nerv3 (:,6:15), 'Linewidth', 1.0) ;
+
+%set(gca,'XTickLabel',a,'FontName','Helvetica','fontsize',24);
+ a=findobj(gcf); % get the handles associated with the current figure
+ 
+ allaxes=findall(a,'Type','axes');
+ %alllines=findall(a,'Type','line');
+ alltext=findall(a,'Type','text');
+ 
+set(allaxes,'FontName','Arial','FontWeight','Bold','LineWidth',2,...
+     'FontSize',14);
+%set(alllines,'Linewidth',1.5);
+set(alltext,'FontName','Arial','FontWeight','Bold','FontSize',14);
+ 
+% Legends
+xlabel ('Time (ms)' , 'fontsize' , 20 );
+ylabel ('Voltage (uv)' , 'fontsize' , 20);
+ 
+xlims = [-5 30];
+xlim (xlims);
+ 
+ylims = [-1000 11500];
+ylim (ylims);
+ 
+%Lines to help guide.
+ 
+signal_wind=[2.5 10];
+%Above line is specifying area of baseline to be analysed for Std. Dev. Don't get too close to edges. 
+
+baseline_wind=[-27.5 -5]; 
+%Above line is specifying area of baseline to be analysed for area of interest. 
+
+plot ([signal_wind(1) signal_wind(1)] , [-2000 11500] , 'k--' , 'Linewidth' , 1  )
+plot ([signal_wind(2) signal_wind(2)] , [-2000 11500] , 'k--' , 'Linewidth' , 1  )
+plot ([7 7] , [-2000 11500] , 'r--.' , 'Linewidth' , 1.5  )
+
+legend ( { 'E1-Bath' , 'E7-Rec1' , 'E8-Rec2' , 'E9-EIT1' , 'E10-EIT2' , 'E11-Rec5' , 'E12-Rec6' , 'E13-Rec7' , 'E14-Rec8' , 'E15-Rec9' , 'E16-Rec10' , 'E17-Rec11' , 'E18-Rec12' , 'E19-Rec13' , 'E20-Rec14' , 'Start of Window', 'End of Window' , 'EIT Value' } , 'FontWeight' , 'normal', 'FontSize' , 7)
+title('Nerve 3 -- Graph of Compound Action Potential on Multiple Electrodes over Time')
+grid
+
+hold off %Completes this figures and stops anything being over-written onto it.
+
+ 
+%% Calculating Average EP for all three tests. 
+
+avg_EP_3Nerv = (  (avg_EP_Nerv1 + avg_EP_Nerv2 + avg_EP_Nerv3) / 3) ;
+
+
+%% Calculating Error of Averaged EPs
+
+%EP_3Nerv_Stderr_Values = [ avg_EP_Nerv1 , avg_EP_Nerv2 , avg_EP_Nerv3 ];
+
+%EP_3Nerv_Stderr = ( ( std ( EP_3Nerv_Stderr_Values )) / ( sqrt (3)));
+
+%EP_3Nerv_Stderr_Values (:,3) = [  ] ;
+
+
+for i = 1 : 15
+    buf = [avg_EP_Nerv1(:,i) avg_EP_Nerv2(:,i) avg_EP_Nerv3(:,i)];
+    EP_3Nerv_std (:,i) = std(buf,1,2);
+end
+
+EP_3Nerv_std_err = EP_3Nerv_std / sqrt (3);
+
+%To calculate max peak for each channel of the average...
+
+%This is to create the window of interest and allow it to be changed
+%easily, outside of the loop. 
+startofwindow = 25150;
+endofwindow = 27900;
+
+Datapoint_EP_3Nerv_Peak = [];
+Datapoint_EP_3Nerv_Pre_Peak = [];
+
+for j = 1 : 15
+    [ Peak_EP_3Nerv_Pre , Datapoint_EP_3Nerv_Pre_Peak ] =  max (avg_EP_3Nerv (startofwindow : endofwindow, j ) );
+            %Line above is used to pull out parts of the data when the EP is maximal in each of the 1-15 channels. 
+    Datapoint_EP_3Nerv_Peak ( j ) = Datapoint_EP_3Nerv_Pre_Peak + startofwindow;
+            %This is used to correct for the index, by adding this start of the window to the total value
+    Datapoint_EP_3Nerv_Peak_Stderr ( j ) = EP_3Nerv_std_err (Datapoint_EP_3Nerv_Peak ( j ), 2 );
+            %This is used to pull out the std. error for each channel at the point that the 3-Nerv-Average EP is at a peak 
+    Peak_EP_3Nerv ( j ) = avg_EP_3Nerv (Datapoint_EP_3Nerv_Peak ( j ), 2);
+            %This is used to pull out the stderror for each channel at the y-value point that the 3-Nerv-Average EP is at a peak 
+            %%This isn't pulling out correct values.......... They decrease (non-linearly) from 1, very quickly
+end
+
+%To plot std_err max peak for each channel of the average... Ilya's kind
+%help
+
+% 
+% for i = 1 : 15
+%     
+%     plot ( T , avg_EP_3Nerv ( : , i ));
+% 
+%         for k = 1 : length(T)
+% 
+%             t_std = [0:30:T-800];
+%             aaa_std_2 = aaa_std(t_std);
+%                 
+%                 if 
+%                     mod(k,30) == 0;
+%                     errorbar ( T(k) , avg_EP_3Nerv(k,i) , aaa_std(k,i)  );
+%                 end
+%             
+%         end
+%         
+%         for k = 2 : length(T)
+% 
+%             t_std = [0:100:T-800];
+%             aaa_std_2 = zeros(49800-7,30);
+%             aaa_std_2 = aaa_std(t_std);
+% 
+%         end
+%         
+%         if mod(k,15) == 0
+%         errorbar ( T(k) , avg_EP_3Nerv(k,i) , aaa_std(k,i)  );
+%         
+%         end
+%         
+% end
+% 
+% 
+%% Plotting Figure of 3 Averages
+ 
+figure;
+hold on
+
+plot ( T , avg_EP_3Nerv (:,1), 'k' , 'Linewidth', 2.0) ;
+errorbar ( T (Datapoint_EP_3Nerv_Peak (1)) , avg_EP_3Nerv (Datapoint_EP_3Nerv_Peak (1),1) , Datapoint_EP_3Nerv_Peak_Stderr (1) ) ;
+
+plot ( T , avg_EP_3Nerv (:,2), 'b' , 'Linewidth', 3.0) ;
+errorbar ( T (Datapoint_EP_3Nerv_Peak (2)) , avg_EP_3Nerv (Datapoint_EP_3Nerv_Peak (2),2) , Datapoint_EP_3Nerv_Peak_Stderr (2), 'b' , 'Linewidth', 1.5 ) ;
+
+plot ( T , avg_EP_3Nerv (:,3), 'r' , 'Linewidth', 3.0) ;
+errorbar ( T (Datapoint_EP_3Nerv_Peak (3)) , avg_EP_3Nerv (Datapoint_EP_3Nerv_Peak (3),2) , Datapoint_EP_3Nerv_Peak_Stderr (3), 'r' , 'Linewidth', 1.5 ) ;
+
+plot ( T , avg_EP_3Nerv (:,4:5),  '--' , 'Linewidth', 1.5) ;
+errorbar ( T (Datapoint_EP_3Nerv_Peak (4:5)) , avg_EP_3Nerv (Datapoint_EP_3Nerv_Peak (4:5),2) , Datapoint_EP_3Nerv_Peak_Stderr (4:5) , 'Linewidth' , 1.0 ) ;
+
+
+% 
+% plot ( T , avg_EP_3Nerv (:,6:15), 'Linewidth', 1.0) ;
+% hold on
+
+%errorbar ( Datapoint_EP_3Nerv_Peak (2:3) , avg_EP_3Nerv (2:3) , Datapoint_EP_3Nerv_Peak_Stderr (2:3) ) ;
+%errorbar ( Datapoint_EP_3Nerv_Peak (4:5) , avg_EP_3Nerv (4:5) , Datapoint_EP_3Nerv_Peak_Stderr (4:5) ) ;
+%errorbar ( Datapoint_EP_3Nerv_Peak (6:15) , avg_EP_3Nerv (6:15) , Datapoint_EP_3Nerv_Peak_Stderr (6:15) ) ;
+
+
+%set(gca,'XTickLabel',a,'FontName','Helvetica','fontsize',24);
+a=findobj(gcf); % get the handles associated with the current figure
+  
+allaxes=findall(a,'Type','axes');
+%alllines=findall(a,'Type','line');
+alltext=findall(a,'Type','text');
+  
+set(allaxes,'FontName','Arial','FontWeight','Bold','LineWidth',2,...
+     'FontSize',14);
+%set(alllines,'Linewidth',1.5);
+set(alltext,'FontName','Arial','FontWeight','Bold','FontSize',14);
+ 
+% Legends
+xlabel ('Time (ms)' , 'fontsize' , 20 );
+ylabel ('Voltage (uv)' , 'fontsize' , 20);
+  
+xlims = [-5 30];
+xlim (xlims);
+  
+ylims = [-1000 8000];
+ylim (ylims);
+  
+%Lines to help guide.
+ 
+signal_wind=[2.5 10];
+%Above line is specifying area of baseline to be analysed for Std. Dev. Don't get too close to edges. 
+ 
+baseline_wind=[-27.5 -5]; 
+%Above line is specifying area of baseline to be analysed for area of interest. 
+
+plot ([signal_wind(1) signal_wind(1)] , [-2000 11500] , 'k--' , 'Linewidth' , 1  )
+plot ([signal_wind(2) signal_wind(2)] , [-2000 11500] , 'k--' , 'Linewidth' , 1  )
+plot ([7 7] , [-2000 11500] , 'r--.' , 'Linewidth' , 1.5  )
+ 
+legend ( { 'E1-Bath' , 'E7-Rec1' , 'E8-Rec2' , 'E9-EIT1' , 'E10-EIT2' , 'E11-Rec5' , 'E12-Rec6' , 'E13-Rec7' , 'E14-Rec8' , 'E15-Rec9' , 'E16-Rec10' , 'E17-Rec11' , 'E18-Rec12' , 'E19-Rec13' , 'E20-Rec14' , 'Start of Window', 'End of Window' , 'EIT Value' } , 'FontWeight' , 'normal', 'FontSize' , 7)
+title('Average of Nerves -- Graph of Compound Action Potential on Multiple Electrodes over Time')
+grid 
+
+hold off %Completes this figures and stops anything being over-written onto it. 
+
+
+
+%%Calculating Error
+% %stderror_EP_3Nerv = std(  ) / sqrt( length )
+% %stderror_EP_3Nerv(:,i) = mean(data_to_average_EP,2); Length = 6
+% 
+% %%
+%  
+% %EP_3Nerv_err = [1 3 5 3 5 3 6 4 3 3];
+% %errorbar(EP_3Nerv,y,err)
+%  
+% figure;
+% hold on
+% plot ( T , averaged_EP_3Nerv (:,1), 'Linewidth', 2.0) ;
+% plot ( T , averaged_EP_3Nerv (:,2:3), 'Linewidth', 3.0) ;
+% plot ( T , averaged_EP_3Nerv (:,4:5),  '--' , 'Linewidth', 1.5) ;
+% plot ( T , averaged_EP_3Nerv (:,6:15), 'Linewidth', 1.0) ;
+% 
+% errorbar(EP_3Nerv_Stderr,EP_3Nerv_Stderr,err)
+% 
+% %
+% %set(gca,'XTickLabel',a,'FontName','Helvetica','fontsize',24);
+% a=findobj(gcf); % get the handles associated with the current figure
+% 
+% allaxes=findall(a,'Type','axes');
+% %alllines=findall(a,'Type','line');
+% alltext=findall(a,'Type','text');
+% 
+% set(allaxes,'FontName','Arial','FontWeight','Bold','LineWidth',2,...
+%     'FontSize',14);
+% %set(alllines,'Linewidth',1.5);
+% set(alltext,'FontName','Arial','FontWeight','Bold','FontSize',14);
+% 
+% % Legends
+% xlabel ('Time (ms)' , 'fontsize' , 20 );
+% ylabel ('Voltage (uv)' , 'fontsize' , 20);
+% 
+% xlims = [-5 30];
+% xlim (xlims);
+% 
+% ylims = [-2000 11500];
+% ylim (ylims);
+% 
+% %Lines to help guide.
+% 
+% signal_wind=[2.5 10];
+% %Above line is specifying area of baseline to be analysed for Std. Dev. Don't get too close to edges. 
+% 
+% baseline_wind=[-27.5 -5]; 
+% %Above line is specifying area of baseline to be analysed for area of interest. 
+% 
+% plot ([signal_wind(1) signal_wind(1)] , [-2000 11500] , 'k--' , 'Linewidth' , 1  )
+% plot ([signal_wind(2) signal_wind(2)] , [-2000 11500] , 'k--' , 'Linewidth' , 1  )
+% plot ([7 7] , [-2000 11500] , 'r--.' , 'Linewidth' , 1.5  )
+% 
+% legend ( { 'E1-Bath' , 'E7-Rec1' , 'E8-Rec2' , 'E9-EIT1' , 'E10-EIT2' , 'E11-Rec5' , 'E12-Rec6' , 'E13-Rec7' , 'E14-Rec8' , 'E15-Rec9' , 'E16-Rec10' , 'E17-Rec11' , 'E18-Rec12' , 'E19-Rec13' , 'E20-Rec14' , 'Start of Window', 'End of Window' , 'EIT Value' } , 'FontWeight' , 'normal', 'FontSize' , 7)
+% 
+% hold off %Completes this figures and stops anything being over-written onto it.  
+% 
+% %%
+% %%Testing Plot
+% 
+% figure;
+% hold on
+% plot(T, averaged_EP_3Nerv)
+% hold off
+% 
+% %% Plot for Averaged dV
+% 
+% figure;
+% hold on
+% plot(averaged_dV_3Nerv)
+% 
+% plot ( T , averaged_dV_3Nerv (:,1), 'Linewidth', 2.0) ;
+% plot ( T , averaged_dV_3Nerv (:,2:3), 'Linewidth', 3.0) ;
+% plot ( T , averaged_dV_3Nerv (:,4:5),  '--' , 'Linewidth', 1.5) ;
+% %plot ( T , dV_all_3Nerves (:,6:15), 'Linewidth', 1.0) ;
+% 
+% %set(gca,'XTickLabel',a,'FontName','Helvetica','fontsize',24);
+% a=findobj(gcf); % get the handles associated with the current figure
+% 
+% allaxes=findall(a,'Type','axes');
+% %alllines=findall(a,'Type','line');
+% alltext=findall(a,'Type','text');
+% 
+% set(allaxes,'FontName','Arial','FontWeight','Bold','LineWidth',2,...
+%     'FontSize',14);
+% %set(alllines,'Linewidth',1.5);
+% set(alltext,'FontName','Arial','FontWeight','Bold','FontSize',14);
+% 
+% xlabel ('Time (ms)' , 'fontsize' , 20 );
+% ylabel ('Voltage (uv)' , 'fontsize' , 20);
+% 
+% xlims = [-5 30];
+% xlim (xlims);
+% 
+% ylims = [-100 250];
+% ylim (ylims);
+% 
+% 
+% dV_of_interest=dV_all(:,[1:5]);
+% 
+% signal_wind=[2.5 10];
+% %Above line is specifying area of baseline to be analysed for Std. Dev. Don't get too close to edges. 
+% 
+% baseline_wind=[-27.5 -5]; 
+% %Above line is specifying area of baseline to be analysed for area of interest. 
+% 
+% plot ([signal_wind(1) signal_wind(1)] , [-2000 11500] , 'k--' , 'Linewidth' , 1  )
+% plot ([signal_wind(2) signal_wind(2)] , [-2000 11500] , 'k--' , 'Linewidth' , 1  )
+% plot ([7 7] , [-250 550] , 'r--.' , 'Linewidth' , 1.5  )
+% 
+% legend ( { 'E1-Bath' , 'E7-Rec1' , 'E8-Rec2' , 'E9-EIT1' , 'E10-EIT2' , 'Start of Window', 'End of Window' , 'EIT Value'} , 'FontWeight' , 'normal', 'FontSize' , 7)
+% hold off %Completes this figures and stops anything being over-written onto it. 
