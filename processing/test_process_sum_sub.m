@@ -119,8 +119,8 @@ inj_chn=sort(inj_chn);
 
 fprintf('Found EIT injection channels %d and %d\n',str2double(HDR.Label{inj_chn(1)}),str2double(HDR.Label{inj_chn(2)}));
 
+good_chn=1:min(inj_chn)-1;
 
-good_chn=1:min(inj_chn);
 
 good_chn(good_chn == bath_chn) =[]; % channels which should not artefact - before inj elec
 
