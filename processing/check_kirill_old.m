@@ -1,4 +1,4 @@
-HDR=ScouseTom_getHDR('./nerve030 - Good/N030_EIT001.bdf');
+HDR=ScouseTom_getHDR('E:\crabcheck\nerve030 - Good\N030_EIT001.bdf');
 
 Biosemi_fname ='N030_EIT001.bdf';
 % OLD=load('E:\crabcheck\nerve030 - Good\mat\N030_EIT001.mat');
@@ -81,6 +81,14 @@ Fc_est=ScouseTom_data_GetCarrier(est_seg(:,inj_chn(1)),Fs);
 Fc=round(Fc_est);
 inj_chn=sort(inj_chn);
 
+
+figure
+plot((detrend(est_seg(:,:))))
+
+figure
+plot(rms(detrend(est_seg(:,:))))
+
+
 fprintf('Found EIT injection channels %s and %s\n',(HDR.Label{inj_chn(1)}),(HDR.Label{inj_chn(2)}));
 
 %% Kirills bit
@@ -90,7 +98,7 @@ good_chn =4; % channel we want to plot 4 is the best one
 %good_trigs=1:140; % which trigger 
 
 
-Y=Data_seg(1:end,:,good_chn)'; 
+Y=Data_seg(1:140,:,good_chn)'; 
 xlims = [-10 30];
 
 if mod(size(Y,2),2)==1
@@ -132,6 +140,8 @@ ylim([-2000,10000])
 
 %%
 dV_sig_orig =(A-2*B+C)/4; % kirills linear fit way
+
+dV_sig=dV_sig_orig;
 
 BW =125;
 
