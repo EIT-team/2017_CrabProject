@@ -12,7 +12,9 @@ Fs=HDR.SampleRate;
 % get the voltages on the desired channels out of the EEG structure
 Data= sread(HDR,inf,0);
 
-bath_chn=1;
+Data(:,10:end)=[];
+
+
 good_chn =[3 4]; % channel we want to plot 4 is the best one
 other_chn=1:size(Data,2);
 other_chn(good_chn)=[];
@@ -66,21 +68,20 @@ DataF_EP=Data;
 
 BW =125;
 
-N=1000;
+N=2;
 F6dB1=Fc-BW;
 F6dB2=Fc+BW;
-FiltBPq = designfilt('bandpassfir', ...       % Response type
+FiltBPq = designfilt('bandpassiir', ...       % Response type
     'FilterOrder',N, ...            % Filter order
-    'CutoffFrequency1',F6dB1, ...    % Frequency constraints
-    'CutoffFrequency2',F6dB2, ...
-    'DesignMethod','window', ...         % Design method
-    'Window','blackmanharris', ...         % Design method options
+    'HalfPowerFrequency1',F6dB1, ...    % Frequency constraints
+    'HalfPowerFrequency2',F6dB2, ...
+    'DesignMethod','Butter', ...         % Design method
     'SampleRate',Fs);
 
 disp('Filtering for EIT');
 
-DataF_EIT=Data;
-% DataF_EIT=ScouseTom_data_DemodHilbert(Data,FiltBPq);
+% DataF_EIT=Data;
+DataF_EIT=ScouseTom_data_DemodHilbert(Data,FiltBPq);
 
 
 
@@ -120,7 +121,7 @@ figure;
 subplot(3,1,1);
 hold on
 
-title('Simple Coherent Averaging');
+title('Simple Coherent Averaging - EP NOT FILTERED');
 plot(T,EP_avg(:,other_chn),'color',[0.7 0.7 0.7],'linewidth',1)
 h1=plot(T,EP_avg(:,good_chn),'linewidth',3);
 
@@ -128,14 +129,15 @@ xlabel('Time ms');
 ylabel('EP uv');
 xlim(xlims)
 
-ep_y_max = round(max(max((100+EP_avg( T > 3 & T <xlims(2),good_chn)))),-2);
-ep_y_min = -round(max(max((100-EP_avg( T > 3 & T <xlims(2),good_chn)))),-2);
+ep_y_max = round(max(max((1000+EP_avg( T > 2 & T <xlims(2),good_chn)))),-2);
+ep_y_min = -round(max(max((1000-EP_avg( T > 2 & T <xlims(2),good_chn)))),-2);
 ylim([ep_y_min ep_y_max])
 % ylim([-4100 9000])
 
 legend(h1,HDR.Label{good_chn})
 
 subplot(3,1,2);
+title('Simple Coherent Averaging - EIT filtered and demod');
 hold on
 plot(T,EIT_avg(:,other_chn),'color',[0.7 0.7 0.7],'linewidth',1)
 h2=plot(T,EIT_avg(:,good_chn),'linewidth',3);
@@ -148,8 +150,6 @@ y_max = round(max(max((10+EIT_avg( T > 5 & T <xlims(2),good_chn)))),-1);
 y_min = -round(max(max((10-EIT_avg( T > 5 & T <xlims(2),good_chn)))),-1);
 ylim([y_min y_max])
 % ylim([-190 440])
-
-legend(HDR.Label)
 
 legend(h2,HDR.Label{good_chn})
 
@@ -352,38 +352,38 @@ dV_patchp=100*(dV_patch./BV_patch);
 dV_patchpm=mean(dV_patchp,2);
 
 %%
-figure
-
-subplot(3,1,1)
-hold on
-plot(T,dV_sig_patch/1000,'color',c(1,:))
-plot(T,dV_sig_patchF/1000,'color',c(2,:))
-hold off
-ylabel('mV')
-xlabel('T ms');
-xlim(xlims)
-title(sprintf('Patched Y %d\n',cur_chn_label))
-
-
-subplot(3,1,2)
-hold on
-plot(T,EP,'color',[0.7 0.7 0.7])
-plot(T,EPm)
-ylabel('uV')
-title(sprintf('EP on elec %d\n',cur_chn_label))
-hold off
-xlim(xlims)
-ylim([-5000,20000])
-
-subplot(3,1,3)
-hold on
-plot(T,(dV_patch),'color',[0.7 0.7 0.7])
-plot(T,dV_patchm)
-title(sprintf('dV on elec %d\n',cur_chn_label))
-ylabel('uV')
-hold off
-xlim(xlims)
-% ylim([-2000,10000])
+% figure
+% 
+% subplot(3,1,1)
+% hold on
+% plot(T,dV_sig_patch/1000,'color',c(1,:))
+% plot(T,dV_sig_patchF/1000,'color',c(2,:))
+% hold off
+% ylabel('mV')
+% xlabel('T ms');
+% xlim(xlims)
+% title(sprintf('Patched Y %d\n',cur_chn_label))
+% 
+% 
+% subplot(3,1,2)
+% hold on
+% plot(T,EP,'color',[0.7 0.7 0.7])
+% plot(T,EPm)
+% ylabel('uV')
+% title(sprintf('EP on elec %d\n',cur_chn_label))
+% hold off
+% xlim(xlims)
+% ylim([-5000,20000])
+% 
+% subplot(3,1,3)
+% hold on
+% plot(T,(dV_patch),'color',[0.7 0.7 0.7])
+% plot(T,dV_patchm)
+% title(sprintf('dV on elec %d\n',cur_chn_label))
+% ylabel('uV')
+% hold off
+% xlim(xlims)
+% % ylim([-2000,10000])
 
 
 
