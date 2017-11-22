@@ -1,4 +1,7 @@
 
+close all;
+
+%%
 HDR=ScouseTom_getHDR;
 [~, fname]=fileparts(HDR.FileName);
 
@@ -10,7 +13,7 @@ Fs=HDR.SampleRate;
 Data= sread(HDR,inf,0);
 
 bath_chn=1;
-good_chn =2:3; % channel we want to plot 4 is the best one
+good_chn =[3 4]; % channel we want to plot 4 is the best one
 other_chn=1:size(Data,2);
 other_chn(good_chn)=[];
 
@@ -58,8 +61,8 @@ FiltEP = designfilt('lowpassfir', ...       % Response type
 
 disp('Filtering for EPs');
 
-DataF_EP=filtfilt(FiltEP,Data);
-
+% DataF_EP=filtfilt(FiltEP,Data);
+DataF_EP=Data;
 
 BW =125;
 
@@ -76,8 +79,8 @@ FiltBPq = designfilt('bandpassfir', ...       % Response type
 
 disp('Filtering for EIT');
 
-
-DataF_EIT=ScouseTom_data_DemodHilbert(Data,FiltBPq);
+DataF_EIT=Data;
+% DataF_EIT=ScouseTom_data_DemodHilbert(Data,FiltBPq);
 
 
 
@@ -153,7 +156,7 @@ legend(h2,HDR.Label{good_chn})
 
 subplot(3,1,3)
 errorbar(EIT_BVm/1000,EIT_BVstd/1000);
-set(gca,'XTickLabels',strtrim(HDR.Label))
+% set(gca,'XTickLabels',strtrim(HDR.Label))
 xlabel('Electrode');
 ylabel('BV mV')
 title('Boundary Voltages')
@@ -192,8 +195,8 @@ c=lines(2);
 
 [b,a] = butter(5,200*2/Fs,'low');
 EP = detrend(-(A+B)/2,'constant');
-EP(T>-1.5 & T<1.5,:) = 0;
-% EP = filtfilt(b,a,EP);
+% EP(T>-1.5 & T<1.5,:) = 0;
+EP = filtfilt(b,a,EP);
 EPm= mean(EP,2);
 
 
@@ -203,9 +206,9 @@ dV_sig_orig =(A-2*B+C)/4; % kirills linear fit way
 
 dV_sigF=dV_sig_orig;
 
-BW =125;
+BW =100;
 
-N=50;
+N=1000;
 F6dB1=Fc-BW;
 F6dB2=Fc+BW;
 FiltBP = designfilt('bandpassfir', ...       % Response type
@@ -216,7 +219,7 @@ FiltBP = designfilt('bandpassfir', ...       % Response type
     'Window','blackmanharris', ...         % Design method options
     'SampleRate',Fs);               % Sample rate
 
-FiltReps=100;
+FiltReps=1;
 
 for iFilt = 1:FiltReps
     
@@ -229,7 +232,7 @@ dVdemod=abs(hilbert(dV_sigF));
 BV= mean(dVdemod(T > - 80 & T < -20,:));
 
 dV=dVdemod-BV;
-dV(T>-1.5 & T<1.5,:) = 0;
+% dV(T>-1.5 & T<1.5,:) = 0;
 dVm=mean(dV,2);
 dVp=100*(dV./BV);
 dVpm=mean(dVp,2);
@@ -254,7 +257,7 @@ subplot(2,2,2)
 hold on
 plot(T,EP,'color',[0.7 0.7 0.7])
 plot(T,EPm)
-ylabel('mV')
+ylabel('uV')
 title(sprintf('EP on elec %d\n',cur_chn_label))
 hold off
 xlim(xlims)
@@ -265,7 +268,7 @@ hold on
 plot(T,(dV),'color',[0.7 0.7 0.7])
 plot(T,dVm)
 title(sprintf('dV on elec %d\n',cur_chn_label))
-ylabel('mV')
+ylabel('uV')
 hold off
 xlim(xlims)
 % ylim([-2000,10000])
@@ -315,9 +318,9 @@ dV_sig_patch=dV_sig_orig;
         end
     end
 
-BW =125;
+BW =100;
 
-N=50;
+N=1000;
 F6dB1=Fc-BW;
 F6dB2=Fc+BW;
 FiltBP = designfilt('bandpassfir', ...       % Response type
@@ -328,13 +331,13 @@ FiltBP = designfilt('bandpassfir', ...       % Response type
     'Window','blackmanharris', ...         % Design method options
     'SampleRate',Fs);               % Sample rate
 
-FiltReps=100;
+FiltReps=1;
 
 dV_sig_patchF=dV_sig_patch;
 
 for iFilt = 1:FiltReps
     
-%     dV_sig_patchF=filtfilt(FiltBP,dV_sig_patchF);
+    dV_sig_patchF=filtfilt(FiltBP,dV_sig_patchF);
     
 end
 
@@ -343,7 +346,7 @@ dV_patch_demod=abs(hilbert(dV_sig_patchF));
 BV_patch= mean(dV_patch_demod(T > - 80 & T < -20,:));
 
 dV_patch=dV_patch_demod-BV_patch;
-dV_patch(T>-1.5 & T<1.5,:) = 0;
+% dV_patch(T>-1.5 & T<1.5,:) = 0;
 dV_patchm=mean(dV_patch,2);
 dV_patchp=100*(dV_patch./BV_patch);
 dV_patchpm=mean(dV_patchp,2);
@@ -366,7 +369,7 @@ subplot(3,1,2)
 hold on
 plot(T,EP,'color',[0.7 0.7 0.7])
 plot(T,EPm)
-ylabel('mV')
+ylabel('uV')
 title(sprintf('EP on elec %d\n',cur_chn_label))
 hold off
 xlim(xlims)
@@ -377,7 +380,7 @@ hold on
 plot(T,(dV_patch),'color',[0.7 0.7 0.7])
 plot(T,dV_patchm)
 title(sprintf('dV on elec %d\n',cur_chn_label))
-ylabel('mV')
+ylabel('uV')
 hold off
 xlim(xlims)
 % ylim([-2000,10000])
