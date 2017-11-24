@@ -99,7 +99,7 @@ good_chn =4; % channel we want to plot 4 is the best one
 
 
 Y=Data_seg(1:140,:,good_chn)'; 
-xlims = [-10 40];
+xlims = [-10 30];
 
 if mod(size(Y,2),2)==1
     Y = Y(:,2:end);
@@ -143,7 +143,7 @@ dV_sig_orig =(A-2*B+C)/4; % kirills linear fit way
 
 dV_sig=dV_sig_orig;
 
-BW =150;
+BW =125;
 
 N=1000;
 F6dB1=Fc-BW;
@@ -156,7 +156,6 @@ FiltBP = designfilt('bandpassfir', ...       % Response type
     'Window','blackmanharris', ...         % Design method options
     'SampleRate',Fs);               % Sample rate
 
-dV_sigF=dV_sig;
 dV_sigF=filtfilt(FiltBP,dV_sig);
 
 dVdemod=abs(hilbert(dV_sigF));
@@ -175,7 +174,7 @@ plot(T,dVm)
 title('dZ');
 hold off
 xlim(xlims)
-% ylim([-60,60])
+% ylim([-2000,10000])
 
 figure
 hold on
@@ -185,7 +184,7 @@ title('dZp');
 hold off
 xlim(xlims)
 % ylim([-2000,10000])
-% ylim([-0.1 0.1])
+ylim([-0.1 0.1])
 
 
 

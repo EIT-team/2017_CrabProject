@@ -270,6 +270,7 @@ hold on
 plot(T,EP,'color',[0.7 0.7 0.7])
 plot(T,EPm)
 ylabel('uV')
+xlabel('T ms');
 title(sprintf('EP on elec %d\n',cur_chn_label))
 hold off
 xlim(xlims)
@@ -281,6 +282,7 @@ plot(T,(dV),'color',[0.7 0.7 0.7])
 plot(T,dVm)
 title(sprintf('dV on elec %d\n',cur_chn_label))
 ylabel('uV')
+xlabel('T ms');
 hold off
 xlim(xlims)
 % ylim([-2000,10000])
@@ -298,70 +300,70 @@ drawnow
 
 %% Doing sum sub with patching out stim artefact
 
-dV_sig_patch=dV_sig_orig;
-
-
-
-    stim_window_dz=find(T > -1 & T< 1);
-    
-    % patch bit of the signal which has the stim artefact in it with a "good"
-    % sine wave. This reduces the sti artefact in the dZ, but we ignore this
-    % anyways
-    for iRep = 1:size(dV_sig_patch,2)
-        try
-            cur_dV_sig=(dV_sig_patch(:,iRep));
-            [pks,locs]=findpeaks(cur_dV_sig,'MinPeakProminence',max(cur_dV_sig(1:floor(stim_window_dz(1)/2))*0.98));
-            
-            loc_stim_idx=find(locs > max(stim_window_dz),1);
-            loc_good_idx=find(locs < min(stim_window_dz),1,'last');
-            
-            patch_window=stim_window_dz-(locs(loc_stim_idx)-locs(loc_good_idx));
-            
-%             figure;
-%             hold on
-%             plot(cur_dV_sig(stim_window_dz));
-%             plot(cur_dV_sig(patch_window));
-%             hold off
-            
-            cur_dV_sig(stim_window_dz) = cur_dV_sig(patch_window);
-            dV_sig_patch(:,iRep)=cur_dV_sig;
-        catch
-            disp('elec fucked up');
-        end
-    end
-
-BW =100;
-
-N=1000;
-F6dB1=Fc-BW;
-F6dB2=Fc+BW;
-FiltBP = designfilt('bandpassfir', ...       % Response type
-    'FilterOrder',N, ...            % Filter order
-    'CutoffFrequency1',F6dB1, ...    % Frequency constraints
-    'CutoffFrequency2',F6dB2, ...
-    'DesignMethod','window', ...         % Design method
-    'Window','blackmanharris', ...         % Design method options
-    'SampleRate',Fs);               % Sample rate
-
-FiltReps=1;
-
-dV_sig_patchF=dV_sig_patch;
-
-for iFilt = 1:FiltReps
-    
-    dV_sig_patchF=filtfilt(FiltBP,dV_sig_patchF);
-    
-end
-
-dV_patch_demod=abs(hilbert(dV_sig_patchF));
-
-BV_patch= mean(dV_patch_demod(T > - 80 & T < -20,:));
-
-dV_patch=dV_patch_demod-BV_patch;
-% dV_patch(T>-1.5 & T<1.5,:) = 0;
-dV_patchm=mean(dV_patch,2);
-dV_patchp=100*(dV_patch./BV_patch);
-dV_patchpm=mean(dV_patchp,2);
+% dV_sig_patch=dV_sig_orig;
+% 
+% 
+% 
+%     stim_window_dz=find(T > -1 & T< 1);
+%     
+%     % patch bit of the signal which has the stim artefact in it with a "good"
+%     % sine wave. This reduces the sti artefact in the dZ, but we ignore this
+%     % anyways
+%     for iRep = 1:size(dV_sig_patch,2)
+%         try
+%             cur_dV_sig=(dV_sig_patch(:,iRep));
+%             [pks,locs]=findpeaks(cur_dV_sig,'MinPeakProminence',max(cur_dV_sig(1:floor(stim_window_dz(1)/2))*0.98));
+%             
+%             loc_stim_idx=find(locs > max(stim_window_dz),1);
+%             loc_good_idx=find(locs < min(stim_window_dz),1,'last');
+%             
+%             patch_window=stim_window_dz-(locs(loc_stim_idx)-locs(loc_good_idx));
+%             
+% %             figure;
+% %             hold on
+% %             plot(cur_dV_sig(stim_window_dz));
+% %             plot(cur_dV_sig(patch_window));
+% %             hold off
+%             
+%             cur_dV_sig(stim_window_dz) = cur_dV_sig(patch_window);
+%             dV_sig_patch(:,iRep)=cur_dV_sig;
+%         catch
+%             disp('elec fucked up');
+%         end
+%     end
+% 
+% BW =100;
+% 
+% N=1000;
+% F6dB1=Fc-BW;
+% F6dB2=Fc+BW;
+% FiltBP = designfilt('bandpassfir', ...       % Response type
+%     'FilterOrder',N, ...            % Filter order
+%     'CutoffFrequency1',F6dB1, ...    % Frequency constraints
+%     'CutoffFrequency2',F6dB2, ...
+%     'DesignMethod','window', ...         % Design method
+%     'Window','blackmanharris', ...         % Design method options
+%     'SampleRate',Fs);               % Sample rate
+% 
+% FiltReps=1;
+% 
+% dV_sig_patchF=dV_sig_patch;
+% 
+% for iFilt = 1:FiltReps
+%     
+%     dV_sig_patchF=filtfilt(FiltBP,dV_sig_patchF);
+%     
+% end
+% 
+% dV_patch_demod=abs(hilbert(dV_sig_patchF));
+% 
+% BV_patch= mean(dV_patch_demod(T > - 80 & T < -20,:));
+% 
+% dV_patch=dV_patch_demod-BV_patch;
+% % dV_patch(T>-1.5 & T<1.5,:) = 0;
+% dV_patchm=mean(dV_patch,2);
+% dV_patchp=100*(dV_patch./BV_patch);
+% dV_patchpm=mean(dV_patchp,2);
 
 %%
 % figure
@@ -427,8 +429,19 @@ T2=T(T>T_trim);
     Out(iChn).dVp=dVp;
     Out(iChn).dVpm=dVpm;
     Out(iChn).T=T;
+    Out(iChn).A=A;
+    Out(iChn).B=B;
+    Out(iChn).Y=Y;
+    Out(iChn).C=C;
+    Out(iChn).dV_sig_orig=dV_sig_orig;
+    Out(iChn).dV_sigF=dV_sigF;
+    
 
 end
+%%
+save([fname '_out'],'Out','EP_avg','EIT_avg','EIT_BVm','good_chn','other_chn');
+
+
 
 %%
 
