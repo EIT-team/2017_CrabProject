@@ -458,6 +458,7 @@ end
 figure;
 subplot(2,1,1);
 plot(T,EP_all)
+ylim([-5000,20000])
 title('EP')
 xlim(xlims)
 ylabel('uV')
@@ -470,5 +471,6 @@ ylabel('uV')
 title('EIT')
 xlabel('T ms')
 legend(HDR.Label{good_chn})
+ylim([-350,100])
 
 
