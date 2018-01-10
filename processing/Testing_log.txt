@@ -1,6 +1,6 @@
 ##################################
 Log file for EIT with ScouseTom system
-Date and time this file was created : 01-Sep-2017 10:49:43
+Date and time this file was created : 18-Dec-2017 19:15:29
 Description of this ExpSetup file : resistor phantom load test
 ExpSetup created : 31-Jul-2015 15:05:43
 The EEG system file stored was : Null- user was testing
@@ -8,19 +8,19 @@ The PC name was : QUAD
 The Username was : Anna
 --------------
 System in "SingleFreqMode" - single amp and freq, running continuously
-Amplitude: 50 uA
+Amplitude: 10 uA
 Frequency: 225 Hz
 Protocol loaded was NCopt_markus_prot.txt with 1 lines 
 Sources	Sinks
 1	2
 --------------
 Number of repeats : 1 
-Injection time per protocol line : 46000 ms or 46.00 s
-Estimated time to complete measurements : 46.00 sec 
+Injection time per protocol line : 45000 ms or 45.00 s
+Estimated time to complete measurements : 45.00 sec 
 --------------
 Stimulation Mode is ON! - Randomised phase delay triggered by phase marker on Keithley
-200 uS pulse triggered every 497 ms with offset 2 ms from channel switch
-Approx 92 stims per injection
+250 uS pulse triggered every 1000 ms with offset 2 ms from channel switch
+Approx 44 stims per injection
 ##################################
 Codes for info from arduino: 
 R	Current Repeat
@@ -34,5 +34,14 @@ I	Initialise
 ##
 Time	Arduino Message	PC Message
 0.00s		Starting Injection
-16.55s	S	
-18.76s		
+0.00s	S	
+0.21s	+OK	
+0.21s		Comm ok, everything ready to go
+0.22s	+OK	
+0.22s		EIT STARTING
+0.58s	D0,179	
+0.60s	R1	
+45.25s	+Fin	
+45.25s		Finished! :)
+45.26s		H
+45.26s		Injection Finished!

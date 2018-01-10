@@ -10,19 +10,19 @@ TT=ScouseTom_TrigProcess(Trigger,HDR);
 Fs=HDR.SampleRate;
 %% read the data
 % get the voltages on the desired channels out of the EEG structure
-Data= sread(HDR,inf,0);
+Data = sread(HDR,inf,0) ;
 
-Data(:,18:end)=[];
+Data(:,18:end)=[] ;
 
 
-good_chn =[3 4]; % channel we want to plot 4 is the best one
-other_chn=1:size(Data,2);
-other_chn(good_chn)=[];
+good_chn = [3 4 ] ; % channel we want to plot 4 is the best one
+other_chn = 1:size(Data,2) ;
+other_chn(good_chn) = [] ;
 
-inj_chn=[3 4];
-xlims = [-20 40];
+inj_chn = [5 6] ;
+xlims = [-5 30] ;
 
-start_trial = 2; % trial we want to start with, for some reason the first few are fucked
+start_trial = 2 ; % trial we want to start with, for some reason the first few are fucked
 
 %% Triggers
 
@@ -46,6 +46,7 @@ est_seg=detrend(Data(floor(T_trig(est_trig)*1.01):ceil(T_trig(est_trig+1)*0.99),
 %find the carrier using this chunk
 Fc_est=ScouseTom_data_GetCarrier(est_seg(:,inj_chn(1)),Fs);
 Fc=round(Fc_est);
+%Fc = 225;
 % fprintf('Found EIT injection channels %s and %s\n',strtrim(HDR.Label{inj_chn(1)}),strtrim(HDR.Label{inj_chn(2)}));
 
 
@@ -471,6 +472,6 @@ ylabel('uV')
 title('EIT')
 xlabel('T ms')
 legend(HDR.Label{good_chn})
-ylim([-350,100])
+ylim([-100,50])
 
 

@@ -1,5 +1,5 @@
 
-close all;
+% close all;
 
 %%
 HDR=ScouseTom_getHDR;
@@ -141,7 +141,7 @@ hold on
 plot(T,squeeze(Data_seg(start_trial:end,:,good_chn)),'color',[0.7 0.7 0.7])
 plot(T,Data_avg(:,good_chn))
 ylabel('uV')
-title(sprintf('EP on elec %s\n',HDR.Label{good_chn}))
+title(sprintf('RAW on elec %s\n',HDR.Label{good_chn}))
 hold off
 xlim(xlims)
 
