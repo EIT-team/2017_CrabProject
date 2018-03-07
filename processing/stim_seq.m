@@ -83,7 +83,9 @@ stim_levels=4;
 
 for iStim = 1:stim_levels
 start_idx=start_trial+(stim_reps*(iStim-1));
-    cur_idx=start_idx:start_idx+stim_reps-1
+    cur_idx=start_idx:start_idx+stim_reps-1;
+    
+    cur_idx = cur_idx (cur_idx < length(T_trig));
     
 % average all the EP chunks across repeats of EPs
 EP_avg(:,:,iStim)=detrend(squeeze(mean(EPall(cur_idx,:,:),1)));
@@ -118,7 +120,7 @@ hold off
 subplot(2,1,2);
 hold on
 
-title('EP chn');
+title('EP rec chn 1');
 % plot(T,EP_avg(:,other_chn,:),'color',[0.7 0.7 0.7],'linewidth',1)
 h1=plot(T,squeeze(EP_avg(:,good_chn(1),:)),'linewidth',3);
 % h2=plot(T,squeeze(EP_avg(:,good_chn(2),:)),'linewidth',3);

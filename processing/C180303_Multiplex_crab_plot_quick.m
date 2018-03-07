@@ -1,12 +1,13 @@
 % close all;
 
 %%
-HDR=ScouseTom_getHDR;
-[~, fname]=fileparts(HDR.FileName);
+HDR = ScouseTom_getHDR ;
+[~, fname] = fileparts(HDR.FileName) ;
 
-Trigger=ScouseTom_TrigReadChn(HDR);
-TT=ScouseTom_TrigProcess(Trigger,HDR);
-Fs=HDR.SampleRate;
+Trigger = ScouseTom_TrigReadChn(HDR) ;
+TT = ScouseTom_TrigProcess(Trigger,HDR) ;
+Fs = HDR.SampleRate ;
+
 %% read the data
 % get the voltages on the desired channels out of the EEG structure
 Data = sread(HDR,inf,0) ;
@@ -17,7 +18,7 @@ Data(:,18:end) = [] ;
 % Data(:,4)=Data(:,4) - Data(:,9);
 
 
-good_chn = [ 3 4 5 6 8 9 10] ; 
+good_chn = [ 3 4 5 6 ] ; 
 % Hooks, channel we want to plot 4 is the best one
 
 %good_chn = [ 1 2 3 4 5 6 7 8 9 ] ; 
@@ -27,15 +28,15 @@ other_chn = 1:size(Data,2) ;
 %other_chn(good_chn) = [] ;
 
 inj_chn = [5 6] ;
-xlims = [-5 30] ;
+xlims = [-3 20] ;
 
 start_trial = 2 ; % trial we want to start with, for some reason the first few are fucked
 
 %% Triggers
 
-T_trig=TT.Stimulations{1};
+T_trig = TT.Stimulations{1};
 %
-T_trig = T_trig(1:10);
+%T_trig = T_trig(1:10);
 % window in ms around event to view
 
 tau_max = 250; % specify in ms
@@ -45,7 +46,7 @@ Tmax = mean(floor((diff(T_trig)*1000)))/Fs;
 
 tau = min([ tau_max Tmax]);
 
-size_bin=floor(tau*Fs/1000); % convert to the number of samples this is equivalent to
+size_bin = floor(tau*Fs/1000); % convert to the number of samples this is equivalent to
 
 %% Estimate the Carrier Frequency
 
@@ -121,24 +122,25 @@ end
 %% Do simple coherent averaging 
 
 % average all the EP chunks across repeats of EPs
-EP_avg=detrend(squeeze(mean(EPall(start_trial:end,:,:),1)));
-EIT_avg=detrend(squeeze(mean(EITall(start_trial:end,:,:),1)));
+EP_avg = detrend(squeeze(mean(EPall(start_trial:end,:,:),1)));
+EIT_avg = detrend(squeeze(mean(EITall(start_trial:end,:,:),1)));
 
 % find 
-EIT_BV=squeeze(mean(EITall(start_trial:end, T > -100 & T < -30,:),2));
-EIT_BVm=mean(EIT_BV);
-EIT_BVstd=std(EIT_BV);
+EIT_BV = squeeze(mean(EITall(start_trial:end, T > -100 & T < -30,:),2));
+EIT_BVm = mean(EIT_BV);
+EIT_BVstd = std(EIT_BV);
 
 %%
 
 figure;
+%Figure 1;
 
 subplot(3,1,1);
 hold on
 
 title('Simple Coherent Averaging - EP NOT FILTERED');
 %clplot(T,EP_avg(:,other_chn),'color',[0.7 0.7 0.7],'linewidth',1)
-h1=plot(T,EP_avg(:,good_chn),'linewidth',3);
+h1 = plot(T,EP_avg(:,good_chn),'linewidth',3);
 
 xlabel('Time ms');
 ylabel('EP uv');
@@ -156,7 +158,7 @@ title('Simple Coherent Averaging - EIT filtered and demod');
 hold on
 
 plot(T,EIT_avg(:,other_chn),'color',[0.7 0.7 0.7],'linewidth',1)
-h2=plot(T,EIT_avg(:,good_chn),'linewidth',3);
+h2 = plot(T,EIT_avg(:,good_chn),'linewidth',3);
 
 xlabel('Time ms');
 ylabel('dZ uv');
@@ -178,8 +180,6 @@ ylabel('BV mV')
 title('Boundary Voltages')
 
 
-
-
 drawnow
 %% Do summation subtraction on good channels
 
@@ -188,13 +188,12 @@ for iChn=1:length(good_chn)
     cur_chn=good_chn(iChn);
 
 
-
-
 %good_trigs=1:140; % which trigger
-cur_chn_label=str2double(HDR.Label{cur_chn});
+cur_chn_label = str2double(HDR.Label{cur_chn});
 fprintf('Summation subtraction on elec %d\n',cur_chn_label)
 
-Y=Data_seg(4:end,:,cur_chn)'; % the first ones are fucked for some reason...
+Y = Data_seg(4:end,:,cur_chn)' ; 
+% the first ones are messed up and don't trigger appropriately for some reason...
 
 if mod(size(Y,2),2)==1
     Y = Y(:,2:end);
@@ -216,20 +215,23 @@ c=lines(2);
 EP = detrend(-(A+B)/2,'constant');
 % EP(T>-1.5 & T<1.5,:) = 0;
 EP = filtfilt(b,a,EP);
-EPm= mean(EP,2);
 
+
+EPm = mean(EP,2);
+%This is to facilitate plotting of the graphs with errors around the mean...
 
 %% EIT from sum sub
+
 dV_sig_orig =(A-2*B+C)/4; % kirills line ar fit way
 
 
-dV_sigF=dV_sig_orig;
+dV_sigF = dV_sig_orig;
 
-BW =100;
+BW = 100;
 
-N=1000;
-F6dB1=Fc-BW;
-F6dB2=Fc+BW;
+N = 1000;
+F6dB1 = Fc-BW;
+F6dB2 = Fc+BW;
 FiltBP = designfilt('bandpassfir', ...       % Response type
     'FilterOrder',N, ...            % Filter order
     'CutoffFrequency1',F6dB1, ...    % Frequency constraints
@@ -250,35 +252,36 @@ FiltBP = designfilt('bandpassfir', ...       % Response type
 
 
 
-FiltReps=1;
+FiltReps = 1 ;
 
 for iFilt = 1:FiltReps
     
-    dV_sigF=filtfilt(FiltBP,dV_sigF);
+    dV_sigF = filtfilt(FiltBP,dV_sigF) ;
     
 end
 
-dVdemod=abs(hilbert(dV_sigF));
+dVdemod = abs(hilbert(dV_sigF)) ;
 
-BV= mean(dVdemod(T > - 80 & T < -20,:));
+BV = mean(dVdemod(T > - 80 & T < -20,:)) ;
 
-dV=dVdemod-BV;
+dV = dVdemod - BV ;
 % dV(T>-1.5 & T<1.5,:) = 0;
-dVm=mean(dV,2);
-dVp=100*(dV./BV);
-dVpm=mean(dVp,2);
+dVm = mean(dV,2);
+dVp = 100*(dV./BV);
+dVpm = mean(dVp,2);
 
 
-%% plot sum sub
+%% plot sum sub for Electrodes of interset...
 
 figure
+%Figure 2;
 
 subplot(2,2,1)
 hold on
 plot(T,A/1000,'color',c(1,:))
 plot(T,B/1000,'color',c(2,:))
-ylabel('mV')
-xlabel('T ms');
+ylabel('Voltage (mV)')
+xlabel('Time (ms)');
 xlim(xlims)
 title(sprintf('Phase AntiPhase Trials on elec %d\n',cur_chn_label))
 
@@ -288,31 +291,31 @@ subplot(2,2,2)
 hold on
 plot(T,EP,'color',[0.7 0.7 0.7])
 plot(T,EPm)
-ylabel('uV')
-xlabel('T ms');
+ylabel('Voltage (uV)')
+xlabel('Time (ms)');
 title(sprintf('EP on elec %d\n',cur_chn_label))
 hold off
 xlim(xlims)
-ylim([-5000,20000])
+ylim([ -1500 , 15000 ])
 
 subplot(2,2,3)
 hold on
 plot(T,(dV),'color',[0.7 0.7 0.7])
 plot(T,dVm)
 title(sprintf('dV on elec %d\n',cur_chn_label))
-ylabel('uV')
-xlabel('T ms');
+ylabel('Voltage (uV)')
+xlabel('Time (ms)');
 hold off
 xlim(xlims)
 % ylim([-2000,10000])
 
 subplot(2,2,4)
 hold on
-plot(T,(dVp),'color',[0.7 0.7 0.7])
-plot(T,dVpm)
-title(sprintf('dVp on elec %d\n',cur_chn_label))
-ylabel('%')
-xlabel('T ms')
+plot(T,(dVp),'color',[0.7 0.7 0.7]) ;
+plot(T,dVpm) ;
+title(sprintf('dVp on elec %d\n',cur_chn_label)) ;
+ylabel('Percentage Impedance Change (%)') ;
+xlabel('Time (ms)') ;
 hold off
 xlim(xlims)
 drawnow
@@ -420,9 +423,6 @@ drawnow
 
 
 
-
-
-
 %% Doing sum sub with trimming the end off
 
 T_trim =1;
@@ -430,13 +430,6 @@ T_trim =1;
 % dV_sigF=dV_sig_orig(T > T_trim,:);
 
 T2=T(T>T_trim);
-
-
-
-
-
-
-
 
 
 %%
@@ -455,40 +448,41 @@ T2=T(T>T_trim);
     Out(iChn).dV_sig_orig=dV_sig_orig;
     Out(iChn).dV_sigF=dV_sigF;
     
-
 end
-%%
-save([fname '_out'],'Out','EP_avg','EIT_avg','EIT_BVm','good_chn','other_chn');
-
-
 
 %%
+save([fname '_out'] , 'Out' , 'EP_avg' , 'EIT_avg' , 'EIT_BVm' , 'good_chn' , 'other_chn' ) ;
+%Should save these key parameters as a single file 
 
-dV_all=nan(size_bin,length(good_chn));
-EP_all=dV_all;
+%%
+
+dV_all = nan(size_bin,length(good_chn)) ;
+EP_all = dV_all ;
 
 for iChn = 1:length(good_chn)
     
-    dV_all(:,iChn)=Out(iChn).dVm;
-    EP_all(:,iChn)=Out(iChn).EPm;
+    dV_all(:,iChn) = Out(iChn).dVm;
+    EP_all(:,iChn) = Out(iChn).EPm;
     
 end
 
 figure;
+%Figure 3;
+
 subplot(2,1,1);
 plot(T,EP_all)
 ylim([-5000,20000])
 title('EP')
 xlim(xlims)
-ylabel('uV')
-xlabel('T ms')
+ylabel('Voltage (uV)')
+xlabel('Time (ms)')
 legend(HDR.Label{good_chn})
 subplot(2,1,2);
 plot(T,dV_all)
 xlim(xlims)
 ylabel('uV')
 title('EIT')
-xlabel('T ms')
+xlabel('Time (ms)')
 legend(HDR.Label{good_chn})
 ylim([-100,50])
 
