@@ -1,6 +1,9 @@
 Fs = 100000;
+T = (1:25000)*1000/Fs;
+T = T - T(length(T)/2);
 
-Y = EPstruc(2).EP(4:end,:,8)';
+%Y = EPstruc(2).EP(4:end,:,8)';
+Y = EPall(4:end,:,4)';
 
 if mod(size(Y,2),2)==1
     Y = Y(:,2:end);
@@ -41,13 +44,19 @@ FiltBP = designfilt('bandpassfir', ...       % Response type
     
 dV_sigF=filtfilt(FiltBP,dV_sigF);
 
-xmean = mean(dV_sigF);
-xcentered = bsxfun(@minus,dV_sigF,xmean);
-xampl = abs(hilbert(xcentered));
-yupper = bsxfun(@plus,xmean,xampl);
+[dVdemod,hlower] = envelope(dV_sigF);
 
-dVdemod=abs(hilbert(dV_sigF));
+BV= mean(dVdemod(T > - 80 & T < -20,:));
 
-[hupper,hlower] = envelope(dV_sigF);
+dV=dVdemod-BV;
+dVm=mean(dV,2);
 
-plot(mean(hupper,2));
+figure
+hold on
+plot(T,(dV),'color',[0.7 0.7 0.7]);
+plot(T,dVm,'linewidth',3);
+title('dV on elec 4');
+ylabel('uV');
+xlabel('T ms');
+hold off
+xlim([-5 30]);
