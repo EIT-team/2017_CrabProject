@@ -10,9 +10,9 @@ Data = sread(HDR,inf,0) ;
 
 Data(:,18:end) = [] ;
 
-good_chn = [3 4 5 6 7 8 9 10 11 12] ; 
+inj_pairs = [5 6 9 10 5 6];
 
-eit_inj_pairs = [5 6];
+eit_inj_pairs = [13 14];
 
 other_chn = 1:size(Data,2) ;
 
@@ -39,7 +39,17 @@ start_trial = 2 ; % trial we want to start with, for some reason the first few a
 
 %% Set this bad boy up
 
-for i = 1:length(eit_inj_pairs)/2
+for i = 1:length(inj_pairs)/2
+
+good_chn = [3 4 5 6 7 8 9 10 11 12];
+
+    for v = 1:length(good_chn)
+        if good_chn(v) <= inj_pairs(i+g+1)
+            good_chn(v) = 0;
+        end
+    end
+    
+good_chn(good_chn==0) = [];
 
 T_trig = trigbois(1:injnum*injtime,i); % window in ms around event to view
 
@@ -59,7 +69,7 @@ est_trig = (injtime*injnum)/2; % dont use the first one as sometimes its messed 
 est_seg=detrend(Data(floor(T_trig(est_trig)*0.99):ceil(T_trig(est_trig+1)*1.01),:));
 
 %find the carrier using this chunk
-Fc_est = ScouseTom_data_GetCarrier(est_seg(:,eit_inj_pairs(i+g)),Fs);
+Fc_est = ScouseTom_data_GetCarrier(est_seg(:,eit_inj_pairs(1)),Fs);
 Fc = round(Fc_est);
 
 N = 500;
@@ -177,7 +187,7 @@ title('Boundary Voltages')
 drawnow
 
 %% EIT Sumsub
-Y = EPall(4:end,:,eit_inj_pairs(i+g)-1)';
+Y = EPall(4:end,:,eit_inj_pairs(1)-1)';
 
 if mod(size(Y,2),2)==1
     Y = Y(:,2:end);
@@ -216,7 +226,7 @@ FiltBP = designfilt('bandpassfir', ...       % Response type
 dV_sigF=filtfilt(FiltBP,dV_sigF);
 
 %[hupper,hlower] = envelope(dV_sigF,100,'peak');
-[hupper,hlower] = envelope(dV_sigF);
+[hupper,hlower] = envelope(dV_sigF,5,'peak');
 
 BV_u= mean(hupper(T > - 80 & T < -20,:));
 BV_l= mean(hlower(T > - 80 & T < -20,:));
@@ -248,7 +258,7 @@ plot(T,(dV),'color',[0.7 0.7 0.7]);
 plot(T,dVm,'linewidth',3);
 plot(T,pstim_line,'--','linewidth',2);
 bar(T,dVa/T_step);
-title(sprintf('dV on elec %d\n',eit_inj_pairs(i+g)-1));
+title(sprintf('dV on elec %d with inj on elec %d\n',eit_inj_pairs(1)-1,inj_pairs(i+g)));
 ylabel('uV');
 xlabel('T ms');
 hold off
@@ -259,7 +269,7 @@ subplot(3,1,2)
 hold on
 plot(T,(dVp),'color',[0.7 0.7 0.7]);
 plot(T,dVpm,'linewidth',3);
-title(sprintf('dVp on elec %d\n',eit_inj_pairs(i+g)-1));
+title(sprintf('dVp on elec %d with inj on elec %d\n',eit_inj_pairs(1)-1,inj_pairs(i+g)));
 ylabel('%');
 xlabel('T ms');
 hold off
@@ -269,7 +279,7 @@ ylim([-0.2 0.2]);
 subplot(3,1,3)
 hold on
 bar(T,dVa);
-title(sprintf('Area of dV on elec %d\n',eit_inj_pairs(i+g)-1));
+title(sprintf('Area of dV on elec %d with inj on elec %d\n',eit_inj_pairs(1)-1,inj_pairs(i+g)));
 ylabel('uV*ms');
 xlabel('T ms');
 hold off
@@ -280,6 +290,7 @@ drawnow
 g = g + 1;
 
 end
+
 %{
 figure
 subplot(3,2,1)

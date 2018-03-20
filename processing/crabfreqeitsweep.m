@@ -16,7 +16,7 @@ eit_inj_pairs = [5 6];
 
 other_chn = 1:size(Data,2) ;
 
-injtime = 30; %seconds
+injtime = 20; %seconds
 injnum = 1; %injections per second
 j = 1;
 k = 1;
@@ -201,7 +201,7 @@ dV_sig_orig =(A-2*B+C)/4; % kirills line ar fit way
 dV_sigF=dV_sig_orig;
 
 BW = 100;
-Fc = 225;
+Fc = 6000;
 N=1000;
 F6dB1=Fc-BW;
 F6dB2=Fc+BW;

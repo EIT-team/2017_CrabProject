@@ -10,13 +10,13 @@ Data = sread(HDR,inf,0) ;
 
 Data(:,18:end) = [] ;
 
-good_chn = [3 4 5 6 7 8 9 10 11 12] ; 
+good_chn = [3 4 5 6 8 9 10 11 12] ; 
 
-eit_inj_pairs = [5 6];
+eit_inj_pairs = [5 6 9 10 13 14 17 18 5 6];
 
 other_chn = 1:size(Data,2) ;
 
-injtime = 30; %seconds
+injtime = 20; %seconds
 injnum = 1; %injections per second
 j = 1;
 k = 1;
@@ -215,8 +215,8 @@ FiltBP = designfilt('bandpassfir', ...       % Response type
     
 dV_sigF=filtfilt(FiltBP,dV_sigF);
 
-%[hupper,hlower] = envelope(dV_sigF,100,'peak');
-[hupper,hlower] = envelope(dV_sigF);
+[hupper,hlower] = envelope(dV_sigF,50,'peak');
+%[hupper,hlower] = envelope(dV_sigF);
 
 BV_u= mean(hupper(T > - 80 & T < -20,:));
 BV_l= mean(hlower(T > - 80 & T < -20,:));
@@ -234,12 +234,13 @@ dVa = zeros(size(dVm));
 
 for l=1:size_bin
     dVdelta = dVm(l)-mean(dVm(12000:12400));
-    dVa(l) = T_step*dVdelta;
+    if dVdelta > 0.01 || dVdelta < -0.01
+        dVa(l) = T_step*dVdelta;
+    end
 end
 
 dVstruc(i).dV = dV;
 dVstruc(i).dVp = dVp;
-dVstruc(i).dVa = sum(dVa);
 
 figure
 subplot(3,1,1)
@@ -266,11 +267,11 @@ hold off
 xlim(xlims);
 ylim([-0.2 0.2]);
 
-subplot(3,1,3)
+subplot(3,1,2)
 hold on
 bar(T,dVa);
 title(sprintf('Area of dV on elec %d\n',eit_inj_pairs(i+g)-1));
-ylabel('uV*ms');
+ylabel('%');
 xlabel('T ms');
 hold off
 xlim(xlims);
@@ -280,7 +281,7 @@ drawnow
 g = g + 1;
 
 end
-%{
+
 figure
 subplot(3,2,1)
 hold on
@@ -359,4 +360,3 @@ hold off
 xlim([xlims]);
 ylim([-14000 ep_y_max]);
 legend({'Trial 1','Trial 2','Trial 3','Trial 4','Trial 5'});
-%}
