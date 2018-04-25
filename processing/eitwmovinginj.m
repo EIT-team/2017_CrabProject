@@ -187,7 +187,7 @@ title('Boundary Voltages')
 drawnow
 
 %% EIT Sumsub
-Y = EPall(4:end,:,eit_inj_pairs(1)-1)';
+Y = Data_seg(4:end,:,eit_inj_pairs(1)-1)';
 
 if mod(size(Y,2),2)==1
     Y = Y(:,2:end);

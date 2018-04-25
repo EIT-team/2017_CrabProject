@@ -12,9 +12,11 @@ Data(:,18:end) = [] ;
 
 good_chn = [3 4 5 6 7 8 9 10 11 12] ; 
 
-eit_inj_pairs = [5 6];
+eit_inj_pairs = [5 6 9 10 5 6];
 
 other_chn = 1:size(Data,2) ;
+
+eit_cur = 10; %eit current in uA
 
 injtime = 30; %seconds
 injnum = 1; %injections per second
@@ -95,9 +97,9 @@ DataF_EIT=ScouseTom_data_DemodHilbert(Data,FiltBPq);
 %% spliting into each stim event
 % make a Time vector - for plotting
 T = (1:size_bin)*1000/Fs;
-T = T - T(length(T)/2);
+T = T - T(round(length(T)/2));
 
-T_step = T(12001)-T(12000);
+T_step = T(101)-T(100);
 
 % pre allocate the data
 
@@ -128,7 +130,17 @@ EIT_BVstd=std(EIT_BV);
 EPstruc(i).EP = Data_seg;
 EPstruc(i).EP_avg = EP_avg;
 EPstruc(i).BV = EIT_BV;
-
+EPstruc(i).BVrecmean = mean(EIT_BV(:,eit_inj_pairs(i+g)-1));
+EPstruc(i).BVlasteitmean = mean(EIT_BV(:,eit_inj_pairs(i+g+1)));
+EPstruc(i).EPmaxf = min(EP_avg(12600:20000,eit_inj_pairs(i+g)-1));
+EPstruc(i).EPmaxeit = min(EP_avg(12600:20000,eit_inj_pairs(i+g+1)));
+EPstruc(i).EPcv = T(12600+find(EP_avg(12600:20000,4) <= min(EP_avg(12600:20000,4)))) - T(12600+find(EP_avg(12600:20000,3) <= min(EP_avg(12600:20000,3))));
+t_cent_indx = find(EP_avg(12600:20000,eit_inj_pairs(i+g+1)) <= EPstruc(i).EPmaxeit);
+EPstruc(i).EPeiteltime = T(12600+t_cent_indx);
+%EPstruc(i).transz = (mean(EIT_BV(:,eit_inj_pairs(i+g)-1))-mean(EIT_BV(:,eit_inj_pairs(i+g+1)+1)))/(eit_cur);
+EPstruc(i).nervez = (mean(EIT_BV(:,eit_inj_pairs(i+g)))-mean(EIT_BV(:,eit_inj_pairs(i+g+1))))/(eit_cur);
+EPstruc(i).backcur_fivefour = (mean(EIT_BV(:,eit_inj_pairs(i+g)))-mean(EIT_BV(:,eit_inj_pairs(i+g)-1)))/(EPstruc(i).nervez);
+EPstruc(i).backcur_sixseven = (mean(EIT_BV(:,eit_inj_pairs(i+g+1)))-mean(EIT_BV(:,eit_inj_pairs(i+g+1)+1)))/(EPstruc(i).nervez);
 %%
 
 figure;
@@ -148,26 +160,7 @@ ylim([ep_y_min ep_y_max])
 % ylim([-4100 9000])
 
 legend(h1,HDR.Label{good_chn})
-%{
-subplot(3,1,2);
-title('Simple Coherent Averaging - EIT filtered and demod');
-hold on
 
-plot(T,EIT_avg(:,other_chn),'color',[0.7 0.7 0.7],'linewidth',1)
-h2=plot(T,EIT_avg(:,good_chn),'linewidth',3);
-
-xlabel('Time ms');
-ylabel('dZ uv');
-xlim(xlims)
-
-y_max = round(max(max((10+EIT_avg( T > 5 & T <xlims(2),good_chn)))),-1);
-y_min = -round(max(max((10-EIT_avg( T > 5 & T <xlims(2),good_chn)))),-1);
-ylim([y_min y_max])
-% ylim([-190 440])
-
-legend(h2,HDR.Label{good_chn})
-
-%}
 subplot(2,1,2)
 errorbar(EIT_BVm/1000,EIT_BVstd/1000);
 xlabel('Electrode');
@@ -177,7 +170,7 @@ title('Boundary Voltages')
 drawnow
 
 %% EIT Sumsub
-Y = EPall(4:end,:,eit_inj_pairs(i+g)-1)';
+Y = Data_seg(4:end,:,eit_inj_pairs(i+g)-1)';
 
 if mod(size(Y,2),2)==1
     Y = Y(:,2:end);
@@ -215,47 +208,57 @@ FiltBP = designfilt('bandpassfir', ...       % Response type
     
 dV_sigF=filtfilt(FiltBP,dV_sigF);
 
-%[hupper,hlower] = envelope(dV_sigF,100,'peak');
-[hupper,hlower] = envelope(dV_sigF);
+hupper = abs(hilbert(dV_sigF));
 
-BV_u= mean(hupper(T > - 80 & T < -20,:));
-BV_l= mean(hlower(T > - 80 & T < -20,:));
+FiltLPdV = designfilt('lowpassfir', ...       % Response type
+    'FilterOrder',500, ...            % Filter order
+    'CutoffFrequency',40, ...    % Frequency constraints
+    'DesignMethod','window', ...         % Design method
+    'Window','blackmanharris', ...         % Design method options
+    'SampleRate',Fs);               % Sample rate
 
-%dV=[hupper-BV_u -1*(hlower-BV_l)];
-dV=hupper-BV_u;
+hupperf = filtfilt(FiltLPdV,hupper);
+
+BV_u= mean(hupperf(T > - 80 & T < -20,:));
+
+dV=hupperf-BV_u;
 dVm=mean(dV,2);
-%dVp=100*([(hupper-BV_u)./BV_u (hlower-BV_l)./BV_l]);
+
 dVp=100*(dV./BV_u);
 dVpm=mean(dVp,2);
 
 pstim_line(size(dVm),1) = mean(dVm(12000:12400));
 
-dVa = zeros(size(dVm));
+dVa = [];
 
-for l=1:size_bin
-    dVdelta = dVm(l)-mean(dVm(12000:12400));
+for l=1:5500
+    dVdelta = dVm(l+12000)-mean(dVm(12000:12400));
     dVa(l) = T_step*dVdelta;
 end
 
 dVstruc(i).dV = dV;
 dVstruc(i).dVp = dVp;
 dVstruc(i).dVa = sum(dVa);
+dVstruc(i).dVpmmin = min(dVpm(12600+t_cent_indx-200:12600+t_cent_indx+200)); %finding max dZ within 2 ms window from CAP on last EIT electrode
+dVstruc(i).dVpmintime = T(12600+t_cent_indx-200+find(dVpm(12600+t_cent_indx-200:12600+t_cent_indx+200) <= dVstruc(i).dVpmmin));
+dVstruc(i).dVmmin = min(dVm(12600+t_cent_indx-200:12600+t_cent_indx+200)); %finding max dZ within 2 ms window from CAP on last EIT electrode
+dVstruc(i).dVmintime = T(12600+t_cent_indx-200+find(dVm(12600+t_cent_indx-200:12600+t_cent_indx+200) <= dVstruc(i).dVmmin));
 
 figure
-subplot(3,1,1)
+subplot(2,1,1)
 hold on
 plot(T,(dV),'color',[0.7 0.7 0.7]);
 plot(T,dVm,'linewidth',3);
 plot(T,pstim_line,'--','linewidth',2);
-bar(T,dVa/T_step);
+bar(T(12001:17500),dVa/T_step);
 title(sprintf('dV on elec %d\n',eit_inj_pairs(i+g)-1));
 ylabel('uV');
 xlabel('T ms');
 hold off
 xlim(xlims);
-ylim([-50 50]);
+%ylim([-50 50]);
 
-subplot(3,1,2)
+subplot(2,1,2)
 hold on
 plot(T,(dVp),'color',[0.7 0.7 0.7]);
 plot(T,dVpm,'linewidth',3);
@@ -264,11 +267,11 @@ ylabel('%');
 xlabel('T ms');
 hold off
 xlim(xlims);
-ylim([-0.2 0.2]);
+%ylim([-0.2 0.2]);
 
 subplot(3,1,3)
 hold on
-bar(T,dVa);
+bar(T(12001:17500),dVa);
 title(sprintf('Area of dV on elec %d\n',eit_inj_pairs(i+g)-1));
 ylabel('uV*ms');
 xlabel('T ms');
@@ -280,83 +283,3 @@ drawnow
 g = g + 1;
 
 end
-%{
-figure
-subplot(3,2,1)
-hold on
-for i = 1:length(eit_inj_pairs)/2
-    plot(T,detrend(squeeze(mean(EPstruc(i).EP(start_trial:end,:,3),1))),'linewidth',3);
-end
-title('EP on Electrode 3 over all trials')
-ylabel('uV');
-xlabel('T ms');
-hold off
-xlim([xlims]);
-ylim([-14000 ep_y_max]);
-legend({'Trial 1','Trial 2','Trial 3','Trial 4','Trial 5'});
-
-subplot(3,2,2)
-hold on
-for i = 1:length(eit_inj_pairs)/2
-    plot(T,detrend(squeeze(mean(EPstruc(i).EP(start_trial:end,:,4),1))),'linewidth',3);
-end
-title('EP on Electrode 4 over all trials')
-ylabel('uV');
-xlabel('T ms');
-hold off
-xlim([xlims]);
-ylim([-14000 ep_y_max]);
-legend({'Trial 1','Trial 2','Trial 3','Trial 4','Trial 5'});
-
-subplot(3,2,3)
-hold on
-for i = 1:length(eit_inj_pairs)/2
-    plot(T,detrend(squeeze(mean(EPstruc(i).EP(start_trial:end,:,5),1))),'linewidth',3);
-end
-title('EP on Electrode 5 over all trials')
-ylabel('uV');
-xlabel('T ms');
-hold off
-xlim([xlims]);
-ylim([-14000 ep_y_max]);
-legend({'Trial 1','Trial 2','Trial 3','Trial 4','Trial 5'});
-
-subplot(3,2,4)
-hold on
-for i = 1:length(eit_inj_pairs)/2
-    plot(T,detrend(squeeze(mean(EPstruc(i).EP(start_trial:end,:,6),1))),'linewidth',3);
-end
-title('EP on Electrode 6 over all trials')
-ylabel('uV');
-xlabel('T ms');
-hold off
-xlim([xlims]);
-ylim([-14000 ep_y_max]);
-legend({'Trial 1','Trial 2','Trial 3','Trial 4','Trial 5'});
-
-subplot(3,2,5)
-hold on
-for i = 1:length(eit_inj_pairs)/2
-    plot(T,detrend(squeeze(mean(EPstruc(i).EP(start_trial:end,:,12),1))),'linewidth',3);
-end
-title('EP on Electrode 12 over all trials')
-ylabel('uV');
-xlabel('T ms');
-hold off
-xlim([xlims]);
-ylim([-14000 ep_y_max]);
-legend({'Trial 1','Trial 2','Trial 3','Trial 4','Trial 5'});
-
-subplot(3,2,6)
-hold on
-for i = 1:length(eit_inj_pairs)/2
-    plot(T,detrend(squeeze(mean(EPstruc(i).EP(start_trial:end,:,13),1))),'linewidth',3);
-end
-title('EP on Electrode 13 over all trials')
-ylabel('uV');
-xlabel('T ms');
-hold off
-xlim([xlims]);
-ylim([-14000 ep_y_max]);
-legend({'Trial 1','Trial 2','Trial 3','Trial 4','Trial 5'});
-%}

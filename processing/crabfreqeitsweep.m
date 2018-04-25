@@ -12,11 +12,13 @@ Data(:,18:end) = [] ;
 
 good_chn = [3 4 5 6 7 8 9 10 11 12] ; 
 
-eit_inj_pairs = [5 6];
+eit_inj_pairs = [4 6];
+eit_freq = 225;
+eit_cur = 10;
 
 other_chn = 1:size(Data,2) ;
 
-injtime = 20; %seconds
+injtime = 10; %seconds
 injnum = 1; %injections per second
 j = 1;
 k = 1;
@@ -55,7 +57,7 @@ size_bin=floor(tau*Fs/1000); % convert to the number of samples this is equivale
 %% Estimate the Carrier Frequency
 
 % find first chunk of data
-est_trig = (injtime*injnum)/2; % dont use the first one as sometimes its messed up
+est_trig = round((injtime*injnum)/2); % dont use the first one as sometimes its messed up
 est_seg=detrend(Data(floor(T_trig(est_trig)*0.99):ceil(T_trig(est_trig+1)*1.01),:));
 
 %find the carrier using this chunk
@@ -97,7 +99,7 @@ DataF_EIT=ScouseTom_data_DemodHilbert(Data,FiltBPq);
 T = (1:size_bin)*1000/Fs;
 T = T - T(length(T)/2);
 
-T_step = T(12001)-T(12000);
+T_step = T(101)-T(100);
 
 % pre allocate the data
 
@@ -111,8 +113,6 @@ for iTrig=1:length(T_trig)
     EPall(iTrig,:,:)= DataF_EP((T_trig(iTrig)-floor(size_bin/2):T_trig(iTrig)+ceil(size_bin/2)-1),:);
     EITall(iTrig,:,:)= DataF_EIT((T_trig(iTrig)-floor(size_bin/2):T_trig(iTrig)+ceil(size_bin/2)-1),:);
 end
-
-
 
 %% Do simple coherent averaging 
 
@@ -128,6 +128,15 @@ EIT_BVstd=std(EIT_BV);
 EPstruc(i).EP = Data_seg;
 EPstruc(i).EP_avg = EP_avg;
 EPstruc(i).BV = EIT_BV;
+EPstruc(i).EPmaxf = min(EP_avg(12600:20000,eit_inj_pairs(i+g)-1));
+EPstruc(i).EPmaxeit = min(EP_avg(12600:20000,eit_inj_pairs(i+g+1)));
+EPstruc(i).EPcv = T(12600+find(EP_avg(12600:20000,4) <= min(EP_avg(12600:20000,4)))) - T(12600+find(EP_avg(12600:20000,3) <= min(EP_avg(12600:20000,3))));
+t_cent_indx = find(EP_avg(12600:20000,eit_inj_pairs(i+g+1)) <= EPstruc(i).EPmaxeit);
+EPstruc(i).EPeiteltime = T(12600+t_cent_indx);
+EPstruc(i).transz = (mean(EIT_BV(:,eit_inj_pairs(i+g)-1))-mean(EIT_BV(:,eit_inj_pairs(i+g+1)+1)))/(2*eit_cur);;
+EPstruc(i).contactz = (mean(EIT_BV(:,eit_inj_pairs(i+g)))-mean(EIT_BV(:,eit_inj_pairs(i+g+1))))/(2*eit_cur);
+
+
 
 %%
 
@@ -135,7 +144,7 @@ figure;
 
 subplot(2,1,1);
 hold on
-title(sprintf('Simple Coherent Averaging of EP - Trial: %d\n',i));
+title(sprintf('Simple Coherent Averaging of EP - Trial: %d with EIT Frequency %d\n',i,eit_freq));
 h1=plot(T,EP_avg(:,good_chn),'linewidth',3);
 
 xlabel('Time ms');
@@ -145,29 +154,9 @@ xlim(xlims)
 ep_y_max = round(max(max((1000+EP_avg( T > 2 & T <xlims(2),good_chn)))),-2);
 ep_y_min = -round(max(max((1000-EP_avg( T > 2 & T <xlims(2),good_chn)))),-2);
 ylim([ep_y_min ep_y_max])
-% ylim([-4100 9000])
 
 legend(h1,HDR.Label{good_chn})
-%{
-subplot(3,1,2);
-title('Simple Coherent Averaging - EIT filtered and demod');
-hold on
 
-plot(T,EIT_avg(:,other_chn),'color',[0.7 0.7 0.7],'linewidth',1)
-h2=plot(T,EIT_avg(:,good_chn),'linewidth',3);
-
-xlabel('Time ms');
-ylabel('dZ uv');
-xlim(xlims)
-
-y_max = round(max(max((10+EIT_avg( T > 5 & T <xlims(2),good_chn)))),-1);
-y_min = -round(max(max((10-EIT_avg( T > 5 & T <xlims(2),good_chn)))),-1);
-ylim([y_min y_max])
-% ylim([-190 440])
-
-legend(h2,HDR.Label{good_chn})
-
-%}
 subplot(2,1,2)
 errorbar(EIT_BVm/1000,EIT_BVstd/1000);
 xlabel('Electrode');
@@ -177,7 +166,7 @@ title('Boundary Voltages')
 drawnow
 
 %% EIT Sumsub
-Y = EPall(4:end,:,eit_inj_pairs(i+g)-1)';
+Y = Data_seg(4:end,:,eit_inj_pairs(i+g)-1)';
 
 if mod(size(Y,2),2)==1
     Y = Y(:,2:end);
@@ -196,15 +185,25 @@ EP = filtfilt(b,a,EP);
 EPm= mean(EP,2);
 
 %% EIT from sum sub
-dV_sig_orig =(A-2*B+C)/4; % kirills line ar fit way
+dV_sig_orig = (A-2*B+C)/4; % kirills line ar fit way
 
 dV_sigF=dV_sig_orig;
 
+%phase_angle_rad  = unwrap(angle(hilbert(Rec_signal))) - unwrap(angle(hilbert(Current)));
+%phase_angle_deg=rad2deg(phase_angle_rad);
+
 BW = 100;
-Fc = 6000;
+Fc = eit_freq;
 N=1000;
 F6dB1=Fc-BW;
 F6dB2=Fc+BW;
+
+%{
+FiltBP = designfilt('bandpassiir','FilterOrder',20, ...
+    'HalfPowerFrequency1',F6dB1,'HalfPowerFrequency2',F6dB2, ...
+    'SampleRate',Fs);
+%}
+
 FiltBP = designfilt('bandpassfir', ...       % Response type
     'FilterOrder',N, ...            % Filter order
     'CutoffFrequency1',F6dB1, ...    % Frequency constraints
@@ -212,19 +211,24 @@ FiltBP = designfilt('bandpassfir', ...       % Response type
     'DesignMethod','window', ...         % Design method
     'Window','blackmanharris', ...         % Design method options
     'SampleRate',Fs);               % Sample rate
-    
+
+
 dV_sigF=filtfilt(FiltBP,dV_sigF);
 
-%[hupper,hlower] = envelope(dV_sigF,100,'peak');
-[hupper,hlower] = envelope(dV_sigF);
+hupper = abs(hilbert(dV_sigF));
 
-BV_u= mean(hupper(T > - 80 & T < -20,:));
-BV_l= mean(hlower(T > - 80 & T < -20,:));
+FiltLPdV = designfilt('lowpassfir', ...       % Response type
+    'FilterOrder',500, ...            % Filter order
+    'CutoffFrequency',40, ...    % Frequency constraints
+    'DesignMethod','window', ...         % Design method
+    'Window','blackmanharris', ...         % Design method options
+    'SampleRate',Fs);               % Sample rate
 
-%dV=[hupper-BV_u -1*(hlower-BV_l)];
-dV=hupper-BV_u;
+hupperf = filtfilt(FiltLPdV,hupper);
+
+BV_u= mean(hupperf(T > - 80 & T < -20,:));
+dV=hupperf-BV_u;
 dVm=mean(dV,2);
-%dVp=100*([(hupper-BV_u)./BV_u (hlower-BV_l)./BV_l]);
 dVp=100*(dV./BV_u);
 dVpm=mean(dVp,2);
 
@@ -240,6 +244,12 @@ end
 dVstruc(i).dV = dV;
 dVstruc(i).dVp = dVp;
 dVstruc(i).dVa = sum(dVa);
+dVstruc(i).dVmmin = min(dVm(12600+t_cent_indx-200:12600+t_cent_indx+200)); %finding max dZ within 2 ms window from CAP on last EIT electrode
+dVstruc(i).dVmintime = T(12600+t_cent_indx-200+find(dVm(12600+t_cent_indx-200:12600+t_cent_indx+200) <= dVstruc(i).dVmmin));
+dVstruc(i).dVpmmin = min(dVpm(12600+t_cent_indx-200:12600+t_cent_indx+200)); %finding max dZ within 2 ms window from CAP on last EIT electrode
+dVstruc(i).dVpmintime = T(12600+t_cent_indx-200+find(dVpm(12600+t_cent_indx-200:12600+t_cent_indx+200) <= dVstruc(i).dVpmmin));
+dVstruc(i).dVpmmax = max(dVpm(12600+t_cent_indx-200:12600+t_cent_indx+200)); %finding max dZ within 2 ms window from CAP on last EIT electrode
+dVstruc(i).dVpmaxtime = T(12600+t_cent_indx-200+find(dVpm(12600+t_cent_indx-200:12600+t_cent_indx+200) >= dVstruc(i).dVpmmax));
 
 figure
 subplot(3,1,1)
@@ -248,7 +258,7 @@ plot(T,(dV),'color',[0.7 0.7 0.7]);
 plot(T,dVm,'linewidth',3);
 plot(T,pstim_line,'--','linewidth',2);
 bar(T,dVa/T_step);
-title(sprintf('dV on elec %d\n',eit_inj_pairs(i+g)-1));
+title(sprintf('dV on elec %d with %d Hz EIT current\n',eit_inj_pairs(i+g)-1,eit_freq));
 ylabel('uV');
 xlabel('T ms');
 hold off
@@ -259,7 +269,7 @@ subplot(3,1,2)
 hold on
 plot(T,(dVp),'color',[0.7 0.7 0.7]);
 plot(T,dVpm,'linewidth',3);
-title(sprintf('dVp on elec %d\n',eit_inj_pairs(i+g)-1));
+%title(sprintf('dVp on elec %d\n',eit_inj_pairs(i+g)-1));
 ylabel('%');
 xlabel('T ms');
 hold off
