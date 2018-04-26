@@ -139,7 +139,7 @@ t_cent_indx = find(EP_avg(12600:20000,eit_inj_pairs(i+g+1)) <= EPstruc(i).EPmaxe
 EPstruc(i).EPeiteltime = T(12600+t_cent_indx);
 %EPstruc(i).transz = (mean(EIT_BV(:,eit_inj_pairs(i+g)-1))-mean(EIT_BV(:,eit_inj_pairs(i+g+1)+1)))/(eit_cur);
 EPstruc(i).nervez = (mean(EIT_BV(:,eit_inj_pairs(i+g)))-mean(EIT_BV(:,eit_inj_pairs(i+g+1))))/(eit_cur);
-EPstruc(i).backcur_fivefour = (mean(EIT_BV(:,eit_inj_pairs(i+g)))-mean(EIT_BV(:,eit_inj_pairs(i+g)-1)))/(EPstruc(i).nervez);
+EPstruc(i).backcur_fivefour = (mean(EIT_BV(:,eit_inj_pairs(i+g)-1))-mean(EIT_BV(:,eit_inj_pairs(i+g))))/(EPstruc(i).nervez);
 EPstruc(i).backcur_sixseven = (mean(EIT_BV(:,eit_inj_pairs(i+g+1)))-mean(EIT_BV(:,eit_inj_pairs(i+g+1)+1)))/(EPstruc(i).nervez);
 %%
 
@@ -245,7 +245,7 @@ dVstruc(i).dVmmin = min(dVm(12600+t_cent_indx-200:12600+t_cent_indx+200)); %find
 dVstruc(i).dVmintime = T(12600+t_cent_indx-200+find(dVm(12600+t_cent_indx-200:12600+t_cent_indx+200) <= dVstruc(i).dVmmin));
 
 figure
-subplot(2,1,1)
+subplot(3,1,1)
 hold on
 plot(T,(dV),'color',[0.7 0.7 0.7]);
 plot(T,dVm,'linewidth',3);
@@ -258,7 +258,7 @@ hold off
 xlim(xlims);
 %ylim([-50 50]);
 
-subplot(2,1,2)
+subplot(3,1,2)
 hold on
 plot(T,(dVp),'color',[0.7 0.7 0.7]);
 plot(T,dVpm,'linewidth',3);

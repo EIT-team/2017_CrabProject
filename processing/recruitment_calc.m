@@ -12,7 +12,7 @@ Data(:,18:end) = [] ;
 
 good_chn = [3 4] ; 
 
-injtime = 10; %seconds
+injtime = 9; %seconds
 injnum = 1; %injections per second
 
 j = 1;
