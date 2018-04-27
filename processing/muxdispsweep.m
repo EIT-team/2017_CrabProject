@@ -12,7 +12,7 @@ Data(:,18:end) = [] ;
 
 good_chn = [3 4 5 6 7 8 9 10 11 12] ; 
 
-eit_inj_pairs = [5 6 9 10 5 6];
+eit_inj_pairs = [5 6 13 14 5 6];
 
 other_chn = 1:size(Data,2) ;
 
