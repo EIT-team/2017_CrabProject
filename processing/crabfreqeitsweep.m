@@ -13,12 +13,12 @@ Data(:,18:end) = [] ;
 good_chn = [3 4 5 6 7 8 9 10 11 12] ; 
 
 eit_inj_pairs = [5 6];
-eit_freq = 625;
+eit_freq = 5000;
 eit_cur = 10;
 
 other_chn = 1:size(Data,2) ;
 
-injtime = 60; %seconds
+injtime = 30; %seconds
 injnum = 1; %injections per second
 j = 1;
 k = 1;

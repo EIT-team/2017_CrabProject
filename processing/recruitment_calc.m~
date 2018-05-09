@@ -156,7 +156,7 @@ EPstruc(1).EP = Data_seg;
 EPstruc(1).EP_avg = EP_avg;
 
 BW = 100;
-Fc = 1000;
+Fc = 225;
 N=1000;
 F6dB1=Fc-BW;
 F6dB2=Fc+BW;
@@ -170,15 +170,9 @@ FiltBP = designfilt('bandpassfir', ...       % Response type
 
 Y = EP_avg(:,4);
 
-Y(12500:12684) = Y(12685);
+Y(12500:12684) = 94.4;
 
 dV_sigF=filtfilt(FiltBP,Y);
-
-figure;
-hold on
-plot(T,Y);
-plot(T,dV_sigF);
-
 
 figure;
 

@@ -12,7 +12,7 @@ Fs=HDR.SampleRate;
 % get the voltages on the desired channels out of the EEG structure
 Data= sread(HDR,inf,0);
 
-good_chn = 8; % channel we want to plot 4 is the best one
+good_chn = 4; % channel we want to plot 4 is the best one
 other_chn=1:size(Data,2);
 other_chn(good_chn)=[];
 
@@ -38,7 +38,7 @@ size_bin=floor(tau*Fs/1000); % convert to the number of samples this is equivale
 %% spliting into each stim event
 % make a Time vector - for plotting
 T = (1:size_bin)*1000/Fs;
-T = T - T(length(T)/2);
+T = T - T(round(length(T)/2));
 
 %%
 disp('Segmenting');
@@ -53,7 +53,7 @@ for iTrig=1:floor(length(T_trig)/2)*2
     %EPall(iTrig,:,:)= detrend(DataF_EP((T_trig(iTrig)-floor(size_bin/2):T_trig(iTrig)+ceil(size_bin/2)-1),:));
 end
 
-[bep,aep]=butter(3,[125]/(Fs/2),'low');
+[bep,aep]=butter(3,[100]/(Fs/2),'low');
 DataF_EP=filtfilt(bep,aep,Data);
 
 %{
@@ -61,13 +61,13 @@ Data_clean = zeros(size(Data,1),1);
 
     p = 2;
     
-    trial_max = max(Data(((T_trig(10)-2800):T_trig(10)-800),eit_rec));
-    trial_min = min(Data(((T_trig(10)-2800):T_trig(10)-800),eit_rec));
+    trial_max = max(Data(((T_trig(10)-2800):T_trig(10)-800),7));
+    trial_min = min(Data(((T_trig(10)-2800):T_trig(10)-800),7));
     
     for g = 1:size(Data,1)-1
        
-        delta_V(p) = Data(g+1,eit_rec) - Data(g,eit_rec);
-        cur_V(p) = Data(g,eit_rec);
+        delta_V(p) = Data(g+1,7) - Data(g,7);
+        cur_V(p) = Data(g,7);
         
         if delta_V(p) > 2000 || cur_V(p) > trial_max || cur_V(p) < trial_min
             Data_clean(g) = cur_V(p-1); 
@@ -77,7 +77,8 @@ Data_clean = zeros(size(Data,1),1);
             p = p + 1;
         end
     end
-%}            
+%}
+
 BW = 100;
 Fc = 225;
 F6dB1=Fc-BW;
@@ -85,20 +86,14 @@ F6dB2=Fc+BW;
 
 disp('Filtering for EIT');
 
-%[b,a] = butter(3,[F6dB1 F6dB2]/(Fs/2));
-%DataF_EIT = filtfilt(b,a,Data_clean);
-%DataF_EIT = abs(hilbert(Data_clean));
-%for i = 10:size(Data_seg,1)
-[b,a] = butter(3,[100]/(Fs/2),'low');
-DataF_dz = abs(hilbert(Data_seg(:,:,8)'));
+[b,a] = butter(3,[40]/(Fs/2),'low');
+[bbp,abp] = butter(3,[F6dB1 F6dB2]/(Fs/2));
+
+DataF_EIT = filtfilt(bbp,abp,Data_seg(:,:,good_chn)');
+
+DataF_dz = abs(hilbert(DataF_EIT));
+
 EITall = filtfilt(b,a,DataF_dz);
-%end
-%[blpdv,alpdv]=butter(3,[40]/(Fs/2),'low');
-
-%DataF_EIT = filtfilt(blpdv,alpdv,DataF_EIT);
-
-% pre allocate the data
-
 
 for iTrig=1:floor(length(T_trig)/2)*2
     

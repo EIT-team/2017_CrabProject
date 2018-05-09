@@ -12,14 +12,14 @@ Data(:,18:end) = [] ;
 
 good_chn = [3 4 5 6 7 8 9 10 11 12] ; 
 
-eit_inj_pairs = [5 6 13 10 5 6];
+eit_inj_pairs = [8 9];
 
 other_chn = 1:size(Data,2) ;
 
 eit_cur = 10; %eit current in uA
 
-injtime = 30; %seconds
-injnum = 1; %injections per second
+injtime = 90; %seconds
+injnum = 5; %injections per second
 j = 1;
 k = 1;
 g = 0;
@@ -64,19 +64,12 @@ est_seg=detrend(Data(floor(T_trig(est_trig)*0.99):ceil(T_trig(est_trig+1)*1.01),
 Fc_est = ScouseTom_data_GetCarrier(est_seg(:,eit_inj_pairs(i+g)),Fs);
 Fc = round(Fc_est);
 
-N = 500;
-FcEP = 100;
-
-FiltEP = designfilt('lowpassfir', ...       % Response type
-    'FilterOrder',N, ...            % Filter order
-    'CutoffFrequency',FcEP, ...    % Frequency constraints
-    'DesignMethod','window', ...         % Design method
-    'Window','blackmanharris', ...         % Design method options
-    'SampleRate',Fs);               % Sample rate
-
 disp('Filtering for EPs');
 
-DataF_EP = filtfilt(FiltEP,Data);
+[bep aep] = butter(3,100/(Fs/2),'low');
+[bepn aepn] = iirnotch(eit_freq/(Fs/2),(eit_freq/(Fs/2))/35);
+DataF_EPlp = filtfilt(bep,aep,Data);
+DataF_EP = filtfilt(bepn,aepn,DataF_EPlp);
 
 BW = 125;
 N = 2;
@@ -102,19 +95,39 @@ T = T - T(round(length(T)/2));
 T_step = T(101)-T(100);
 
 % pre allocate the data
+%{
+Data_clean = zeros(size(Data,1),1);
 
+    p = 2;
+    
+    trial_max = max(Data(((T_trig(10)-2800):T_trig(10)-800),7));
+    trial_min = min(Data(((T_trig(10)-2800):T_trig(10)-800),7));
+    
+    for w = 1:size(Data,1)-1
+       
+        delta_V(p) = Data(w+1,7) - Data(w,7);
+        cur_V(p) = Data(w,7);
+        
+        if delta_V(p) > 2000 || cur_V(p) > trial_max || cur_V(p) < trial_min
+            Data_clean(w) = cur_V(p-1); 
+        end
+        if cur_V(p) <= trial_max && cur_V(p) >= trial_min
+            Data_clean(w) = cur_V(p);
+            p = p + 1;
+        end
+    end
+%}
 disp('Segmenting');
 Data_seg=zeros(length(T_trig),size_bin,size(Data,2));
-EPall=Data_seg;
-EITall=Data_seg;
+EPall=zeros(length(T_trig),size_bin,size(Data,2));
+EITall=zeros(length(T_trig),size_bin,size(Data,2));
+
 % loop through every stime event and take the data either side of stim
 for iTrig=1:length(T_trig)
     Data_seg(iTrig,:,:)= Data((T_trig(iTrig)-floor(size_bin/2):T_trig(iTrig)+ceil(size_bin/2)-1),:);
     EPall(iTrig,:,:)= DataF_EP((T_trig(iTrig)-floor(size_bin/2):T_trig(iTrig)+ceil(size_bin/2)-1),:);
     EITall(iTrig,:,:)= DataF_EIT((T_trig(iTrig)-floor(size_bin/2):T_trig(iTrig)+ceil(size_bin/2)-1),:);
 end
-
-
 
 %% Do simple coherent averaging 
 
@@ -141,7 +154,6 @@ EPstruc(i).EPeiteltime = T(12600+t_cent_indx);
 EPstruc(i).nervez = (mean(EIT_BV(:,eit_inj_pairs(i+g)))-mean(EIT_BV(:,eit_inj_pairs(i+g+1))))/(eit_cur);
 EPstruc(i).backcur_fivefour = (mean(EIT_BV(:,eit_inj_pairs(i+g)-1))-mean(EIT_BV(:,eit_inj_pairs(i+g))))/(EPstruc(i).nervez);
 EPstruc(i).backcur_sixseven = (mean(EIT_BV(:,eit_inj_pairs(i+g+1)))-mean(EIT_BV(:,eit_inj_pairs(i+g+1)+1)))/(EPstruc(i).nervez);
-%%
 
 figure;
 
@@ -170,7 +182,7 @@ title('Boundary Voltages')
 drawnow
 
 %% EIT Sumsub
-Y = Data_seg(4:end,:,4)';%eit_inj_pairs(i+g)-1)';
+Y = Data_seg(4:end,:,eit_inj_pairs(i+g)-1)';
 
 if mod(size(Y,2),2)==1
     Y = Y(:,2:end);
@@ -180,35 +192,24 @@ A = detrend(Y(:,1:2:end-2),'constant');
 B = detrend(Y(:,2:2:end-2),'constant');
 C = detrend(Y(:,3:2:end),'constant');
 
-
-%% EP from sum sub
-
-[b,a] = butter(5,200*2/Fs,'low');
-EP = detrend(-(A+B)/2,'constant');
-EP = filtfilt(b,a,EP);
-EPm= mean(EP,2);
-
 %% EIT from sum sub
-dV_sig_orig =(A-2*B+C)/4; % kirills line ar fit way
 
-dV_sigF=dV_sig_orig;
+dV_sig_orig = (A-2*B+C)/4; % kirills line ar fit way
 
 BW = 100;
-Fc = 225;
+Fc = eit_freq;
 N=1000;
 F6dB1=Fc-BW;
 F6dB2=Fc+BW;
-FiltBP = designfilt('bandpassfir', ...       % Response type
-    'FilterOrder',N, ...            % Filter order
-    'CutoffFrequency1',F6dB1, ...    % Frequency constraints
-    'CutoffFrequency2',F6dB2, ...
-    'DesignMethod','window', ...         % Design method
-    'Window','blackmanharris', ...         % Design method options
-    'SampleRate',Fs);               % Sample rate
+
+[bbp,abp] = butter(3,[F6dB1 F6dB2]/(Fs/2));
+
+
+dV_sigF=filtfilt(bbp,abp,dV_sig_orig);
     
 dV_sigF=filtfilt(FiltBP,dV_sigF);
 
-hupper = abs(hilbert(dV_sigF));
+[hupper hlower] = envelope(dV_sigF);%abs(hilbert(dV_sigF));
 
 FiltLPdV = designfilt('lowpassfir', ...       % Response type
     'FilterOrder',500, ...            % Filter order
@@ -227,15 +228,16 @@ dVm=mean(dV,2);
 dVp=100*(dV./BV_u);
 dVpm=mean(dVp,2);
 
-pstim_line(size(dVm),1) = mean(dVm(12000:12400));
+%pstim_line(size(dVm),1) = mean(dVm(12000:12400));
 
-dVa = [];
+%dVa = [];
 
-for l=1:5500
-    dVdelta = dVm(l+12000)-mean(dVm(12000:12400));
-    dVa(l) = T_step*dVdelta;
-end
+%for l=1:5500
+%    dVdelta = dVm(l+12000)-mean(dVm(12000:12400));
+%    dVa(l) = T_step*dVdelta;
+%end
 
+%{
 dVstruc(i).dV = dV;
 dVstruc(i).dVp = dVp;
 dVstruc(i).dVa = sum(dVa);
@@ -243,14 +245,14 @@ dVstruc(i).dVpmmin = min(dVpm(12600+t_cent_indx-200:12600+t_cent_indx+200)); %fi
 dVstruc(i).dVpmintime = T(12600+t_cent_indx-200+find(dVpm(12600+t_cent_indx-200:12600+t_cent_indx+200) <= dVstruc(i).dVpmmin));
 dVstruc(i).dVmmin = min(dVm(12600+t_cent_indx-200:12600+t_cent_indx+200)); %finding max dZ within 2 ms window from CAP on last EIT electrode
 dVstruc(i).dVmintime = T(12600+t_cent_indx-200+find(dVm(12600+t_cent_indx-200:12600+t_cent_indx+200) <= dVstruc(i).dVmmin));
-
+%}
 figure
 subplot(3,1,1)
 hold on
 plot(T,(dV),'color',[0.7 0.7 0.7]);
 plot(T,dVm,'linewidth',3);
-plot(T,pstim_line,'--','linewidth',2);
-bar(T(12001:17500),dVa/T_step);
+%plot(T,pstim_line,'--','linewidth',2);
+%bar(T(12001:17500),dVa/T_step);
 title(sprintf('dV on elec %d\n',eit_inj_pairs(i+g)-1));
 ylabel('uV');
 xlabel('T ms');
@@ -271,7 +273,7 @@ xlim(xlims);
 
 subplot(3,1,3)
 hold on
-bar(T(12001:17500),dVa);
+%bar(T(12001:17500),dVa);
 title(sprintf('Area of dV on elec %d\n',eit_inj_pairs(i+g)-1));
 ylabel('uV*ms');
 xlabel('T ms');
