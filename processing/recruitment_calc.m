@@ -168,7 +168,7 @@ FiltBP = designfilt('bandpassfir', ...       % Response type
     'Window','blackmanharris', ...         % Design method options
     'SampleRate',Fs);               % Sample rate
 
-Y = EP_avg(:,4);
+Y = EP_avg(:,7);
 
 Y(12500:12684) = Y(12685);
 
@@ -178,7 +178,18 @@ figure;
 hold on
 plot(T,Y);
 plot(T,dV_sigF);
+%{
+L = 25000;
+fft_cap = fft(Y);
+P2 = abs(fft_cap/25000);
+P1 = P2(1:(25000/2)+1);
+P1(2:end-1) = 2*P1(2:end-1);
+f = Fs * (0:(25000/2))/25000;
 
+figure
+plot(f,P1);
+
+%}
 
 figure;
 

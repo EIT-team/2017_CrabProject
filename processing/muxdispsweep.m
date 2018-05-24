@@ -12,15 +12,16 @@ Data(:,18:end) = [] ;
 
 good_chn = [3 4 5 6 7 8 9 10 11 12] ; 
 
-eit_inj_pairs = [8 9];
+eit_inj_pairs = [5 6];
 eit_freq = 225;
+last_el = 10;
 
 other_chn = 1:size(Data,2) ;
 
 eit_cur = 10; %eit current in uA
 
-injtime = 60; %seconds
-injnum = 5; %injections per second
+injtime = 10; %seconds
+injnum = 1; %injections per second
 j = 1;
 k = 1;
 g = 0;
@@ -58,21 +59,21 @@ size_bin=floor(tau*Fs/1000); % convert to the number of samples this is equivale
 %% Estimate the Carrier Frequency
 
 % find first chunk of data
-est_trig = (injtime*injnum)/2; % dont use the first one as sometimes its messed up
+est_trig = round((injtime*injnum)/2); % dont use the first one as sometimes its messed up
 est_seg=detrend(Data(floor(T_trig(est_trig)*0.99):ceil(T_trig(est_trig+1)*1.01),:));
 
 %find the carrier using this chunk
-Fc_est = ScouseTom_data_GetCarrier(est_seg(:,eit_inj_pairs(i+g)),Fs);
+Fc_est = ScouseTom_data_GetCarrier(est_seg(:,eit_inj_pairs(i)),Fs);
 Fc = round(Fc_est);
 
 disp('Filtering for EPs');
 
-[bep aep] = butter(3,100/(Fs/2),'low');
+[bep aep] = butter(3,125/(Fs/2),'low');
 [bepn aepn] = iirnotch(eit_freq/(Fs/2),(eit_freq/(Fs/2))/35);
 DataF_EPlp = filtfilt(bep,aep,Data);
 DataF_EP = filtfilt(bepn,aepn,DataF_EPlp);
 
-BW = 125;
+BW = 100;
 N = 2;
 F6dB1 = Fc-BW;
 F6dB2 = Fc+BW;
@@ -95,29 +96,6 @@ T = T - T(round(length(T)/2));
 
 T_step = T(101)-T(100);
 
-% pre allocate the data
-%{
-Data_clean = zeros(size(Data,1),1);
-
-    p = 2;
-    
-    trial_max = max(Data(((T_trig(10)-2800):T_trig(10)-800),7));
-    trial_min = min(Data(((T_trig(10)-2800):T_trig(10)-800),7));
-    
-    for w = 1:size(Data,1)-1
-       
-        delta_V(p) = Data(w+1,7) - Data(w,7);
-        cur_V(p) = Data(w,7);
-        
-        if delta_V(p) > 2000 || cur_V(p) > trial_max || cur_V(p) < trial_min
-            Data_clean(w) = cur_V(p-1); 
-        end
-        if cur_V(p) <= trial_max && cur_V(p) >= trial_min
-            Data_clean(w) = cur_V(p);
-            p = p + 1;
-        end
-    end
-%}
 disp('Segmenting');
 Data_seg=zeros(length(T_trig),size_bin,size(Data,2));
 EPall=zeros(length(T_trig),size_bin,size(Data,2));
@@ -148,9 +126,11 @@ EPstruc(i).BVrecmean = mean(EIT_BV(:,eit_inj_pairs(i+g)-1));
 EPstruc(i).BVlasteitmean = mean(EIT_BV(:,eit_inj_pairs(i+g+1)));
 EPstruc(i).EPmaxf = min(EP_avg(12600:20000,eit_inj_pairs(i+g)-1));
 EPstruc(i).EPmaxeit = min(EP_avg(12600:20000,eit_inj_pairs(i+g+1)));
+EPstruc(i).EPmaxinref = max(EP_avg(14600:20000,last_el));
 EPstruc(i).EPcv = T(12600+find(EP_avg(12600:20000,4) <= min(EP_avg(12600:20000,4)))) - T(12600+find(EP_avg(12600:20000,3) <= min(EP_avg(12600:20000,3))));
 t_cent_indx = find(EP_avg(12600:20000,eit_inj_pairs(i+g+1)) <= EPstruc(i).EPmaxeit);
 EPstruc(i).EPeiteltime = T(12600+t_cent_indx);
+EPstruc(i).EPmaxftime = T(12600+find(EP_avg(12600:20000,eit_inj_pairs(i+g)-1) <= EPstruc(i).EPmaxf));
 EPstruc(i).nervez = (mean(EIT_BV(:,eit_inj_pairs(i+g)))-mean(EIT_BV(:,eit_inj_pairs(i+g+1))))/(eit_cur);
 EPstruc(i).backcur_fivefour = (mean(EIT_BV(:,eit_inj_pairs(i+g)-1))-mean(EIT_BV(:,eit_inj_pairs(i+g))))/(EPstruc(i).nervez);
 EPstruc(i).backcur_sixseven = (mean(EIT_BV(:,eit_inj_pairs(i+g+1)))-mean(EIT_BV(:,eit_inj_pairs(i+g+1)+1)))/(EPstruc(i).nervez);
@@ -175,10 +155,26 @@ legend(h1,HDR.Label{good_chn})
 subplot(2,1,2)
 errorbar(EIT_BVm/1000,EIT_BVstd/1000);
 xlabel('Electrode');
-ylabel('BV mV')
-title('Boundary Voltages')
+ylabel('BV mV');
+title('Boundary Voltages');
 
-drawnow
+drawnow;
+
+colorinc = 0;
+figure;
+hold on
+for v = 1:size(EPall,1)
+    plot(T,detrend(EPall(v,:,eit_inj_pairs(1)-1)),'color',[1-colorinc 0 0]);
+    colorinc = colorinc + 1/(size(EPall,1));
+end
+xlabel('Time ms');
+ylabel('EP uv');
+xlim(xlims);
+title(sprintf('CAP over all trials on elec %d\n',eit_inj_pairs(1)-1));
+hold off
+
+drawnow;
+
 
 %% EIT Sumsub
 Y = Data_seg(4:end,:,eit_inj_pairs(i+g)-1)';
@@ -197,28 +193,38 @@ dV_sig_orig = (A-2*B+C)/4; % kirills line ar fit way
 
 BW = 100;
 Fc = eit_freq;
-N=1000;
 F6dB1=Fc-BW;
 F6dB2=Fc+BW;
+
+figure;
+plot(T,dV_sig_orig);
+title('Pre Bandpass Signal');
+xlim(xlims);
+
+drawnow;
 
 [bbp,abp] = butter(3,[F6dB1 F6dB2]/(Fs/2));
 
 dV_sigF=filtfilt(bbp,abp,dV_sig_orig);
 
+figure;
+plot(T,dV_sigF);
+title('Post Bandpass Signal');
+xlim(xlims);
+
+drawnow;
+
 hupper = abs(hilbert(dV_sigF));
 
-FiltLPdV = designfilt('lowpassfir', ...       % Response type
-    'FilterOrder',500, ...            % Filter order
-    'CutoffFrequency',40, ...    % Frequency constraints
-    'DesignMethod','window', ...         % Design method
-    'Window','blackmanharris', ...         % Design method options
-    'SampleRate',Fs);               % Sample rate
+figure;
+plot(T,hupper);
+title('Post Hilbert Transform Signal');
+xlim(xlims);
+drawnow;
 
-hupperf = filtfilt(FiltLPdV,hupper);
+BV_u= mean(hupper(T > - 80 & T < -20,:));
 
-BV_u= mean(hupperf(T > - 80 & T < -20,:));
-
-dV=hupperf-BV_u;
+dV=hupper-BV_u;
 dVm=mean(dV,2);
 
 dVp=100*(dV./BV_u);
@@ -274,6 +280,29 @@ xlabel('T ms');
 hold off
 xlim(xlims);
 
+drawnow
+
+test_fft = (A+B)/2;
+
+figure
+fft_cap = fft(test_fft(12751:20000,eit_inj_pairs(i+g)-1));
+L = size(test_fft(12751:20000,eit_inj_pairs(i+g)-1),1);
+P2 = abs(fft_cap/L);
+P1 = P2(1:(L/2)+1);
+P1(2:end-1) = 2*P1(2:end-1);
+f = Fs * (0:(L/2))/L;
+
+psdarea = [];
+
+for l=1:15
+    psdarea(l) = P1(9+l);
+end
+
+plot(f,P1);
+hold on
+bar(f(10:24),psdarea);
+xlim([0 1000]);
+hold off
 drawnow
 
 g = g + 1;

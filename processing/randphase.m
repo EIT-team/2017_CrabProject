@@ -1,3 +1,4 @@
+
 HDR=ScouseTom_getHDR;
 [~, fname]=fileparts(HDR.FileName);
 
@@ -12,13 +13,13 @@ Data(:,18:end) = [] ;
 
 good_chn = [3 4 5 6 7 8 9 10 11 12] ; 
 
-eit_inj_pairs = [8 9];
+eit_inj_pairs = [4 5];
 eit_freq = 225;
 
 other_chn = 1:size(Data,2) ;
 
-injtime = 360; %seconds
-injnum = 1; %injections per second
+injtime = 72; %seconds
+injnum = 5; %injections per second
 j = 1;
 k = 1;
 g = 0;
@@ -56,13 +57,15 @@ est_trig = (injtime*injnum)/2; % dont use the first one as sometimes its messed 
 est_seg=detrend(Data(floor(T_trig(est_trig)*0.99):ceil(T_trig(est_trig+1)*1.01),:));
 
 %find the carrier using this chunk
-Fc_est = ScouseTom_data_GetCarrier(est_seg(:,eit_inj_pairs(2)),Fs);
+Fc_est = ScouseTom_data_GetCarrier(est_seg(:,eit_inj_pairs(1)),Fs);
 Fc = round(Fc_est);
 
 [bep aep] = butter(3,100/(Fs/2),'low');
 [bepn aepn] = iirnotch(eit_freq/(Fs/2),(eit_freq/(Fs/2))/35);
+[bepnf aepnf] = iirnotch(50/(Fs/2),(50/(Fs/2))/35);
 DataF_EPlp = filtfilt(bep,aep,Data);
-DataF_EP = filtfilt(bepn,aepn,DataF_EPlp);
+DataF_EPlpn = filtfilt(bepn,aepn,DataF_EPlp);
+DataF_EP = filtfilt(bepnf,aepnf,DataF_EPlpn);
 
 BW = 100;
 N = 2;
@@ -98,23 +101,6 @@ for iTrig=1:length(T_trig)
     EITall(iTrig,:,:)= DataF_EIT((T_trig(iTrig)-floor(size_bin/2):T_trig(iTrig)+ceil(size_bin/2)-1),:);
 end
 
-%{
-for n = 4:40
-
-    clear hupper_test
-
-    hupper_test = abs(hilbert(dV_sigF(:,n)));
-    hupperf_test = filtfilt(FiltLPdV,hupper_test);
-    figure
-    plot(T,hupperf_test);
-    hold on
-    plot(T,dV_sigF(:,n));
-    hold off
-    xlim(xlims);
-    drawnow
-    
-end
-%}
 %% Do simple coherent averaging 
 
 % average all the EP chunks across repeats of EPs
@@ -166,16 +152,89 @@ hold off
 
 drawnow;
 
-%% EIT RandPhase
 
-Y = Data_seg(4:end,:,eit_inj_pairs(1)-1)';
+%% EIT Set-up
+
+Y = Data_seg(:,:,eit_inj_pairs(1)-1)';
 
 if mod(size(Y,2),2)==1
     Y = Y(:,2:end);
 end
 
 %% EIT from sum sub
+coun = 1;
+for i = 2:2:size(Y,2)-1
+        
+        fft_s = fft(Y(:,i));
+        fft_p = fft(Y(:,i+1));
+        
+        [mag_s idx_s] = max(abs(fft_s));
+        [mag_p idx_p] = max(abs(fft_p));
+        
+        phase_diff = rad2deg(abs(angle(fft_s(idx_s))-angle(fft_p(idx_p))));
+        
+        if phase_diff <= 181 && phase_diff >=179
+            
+            dV_sig_orig_sumsub(:,coun) = (Y(:,i+1)-Y(:,i))/2;
+            ep_sumsub(:,coun) = (Y(:,i+1)+Y(:,i))/2;
+            coun = coun + 1;
+        end
+        
+end
 
+BW = 100;
+Fc = eit_freq;
+F6dB1=Fc-BW;
+F6dB2=Fc+BW;
+
+figure;
+plot(T,dV_sig_orig_sumsub);
+title('Pre Bandpass Signal');
+xlim(xlims);
+
+drawnow;
+
+[bbp,abp] = butter(3,[F6dB1 F6dB2]/(Fs/2));
+
+dV_sigF_sumsub=filtfilt(bbp,abp,dV_sig_orig_sumsub);
+
+figure;
+plot(T,dV_sigF_sumsub);
+title('Post Bandpass Signal');
+xlim(xlims);
+
+drawnow;
+
+hupper_sumsub = abs(hilbert(dV_sigF_sumsub));
+
+figure;
+plot(T,hupper_sumsub);
+title('Post Hilbert Transform Signal');
+xlim(xlims);
+drawnow;
+
+BV_u_sumsub= mean(hupper_sumsub(T > - 80 & T < -20,:));
+
+dV_sumsub=hupper_sumsub-BV_u_sumsub;
+dVm_sumsub=mean(dV_sumsub,2);
+
+dVp_sumsub=100*(dV_sumsub./BV_u_sumsub);
+dVpm_sumsub=mean(dVp_sumsub,2);
+
+figure;
+hold on
+plot(T,(dVp_sumsub),'color',[0.7 0.7 0.7]);
+plot(T,dVpm_sumsub,'linewidth',3);
+title(sprintf('dVp on elec %d\n',eit_inj_pairs(1)-1));
+ylabel('%');
+xlabel('T ms');
+hold off
+xlim(xlims);
+
+drawnow;
+
+%{
+%% EIT with Random Phase
 dV_sig_orig = Y;
 
 figure;
@@ -210,22 +269,7 @@ plot(T,hupper);
 title('Post Hilbert Transform Signal');
 xlim(xlims);
 drawnow;
-%{
-FiltLPdV = designfilt('lowpassfir', ...       % Response type
-    'FilterOrder',500, ...            % Filter order
-    'CutoffFrequency',40, ...    % Frequency constraints
-    'DesignMethod','window', ...         % Design method
-    'Window','blackmanharris', ...         % Design method options
-    'SampleRate',Fs);               % Sample rate
 
-hupperf = filtfilt(FiltLPdV,hupper);
-
-figure;
-plot(T,hupperf);
-title('Low-pass Filtered Hilbert Transform Signal');
-xlim(xlims);
-drawnow;
-%}
 BV_u= mean(hupper(T > - 80 & T < -20,:));
 
 dV=hupper-BV_u;
@@ -245,4 +289,24 @@ hold off
 xlim(xlims);
 ylim([-0.4 0.4]);
 
-drawnow
+drawnow;
+%{
+figure;
+colorinc = 0;
+hold on
+for v = 1:size(dVp,2)
+    plot(T,dVp(:,v),'color',[0 0 1-colorinc]);
+    colorinc = colorinc + 1/(size(dVp,2));
+    
+    ylabel('%');
+    xlabel('T ms');
+    xlim(xlims);
+    ylim([-2 2]);
+    drawnow;
+    pause(0.5);
+end
+  %}  
+%}
+    
+    
+    
