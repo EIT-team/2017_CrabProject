@@ -16,16 +16,14 @@ for i = 1:length(TT.Stimulations{1})
     trigbois(i) = TT.Stimulations{1}(i);
 end
 %% Figuring out Timing Windows
-T_trig = trigbois(1:injnum*injtime,1); % window in ms around event to view
+T_trig = trigbois(1:injnum*injtime); % window in ms around event to view
 tau_max = 250; % specify in ms
 Tmax = mean(floor((diff(T_trig)*1000)))/Fs; % find max timing between stims
 tau = min([ tau_max Tmax]); % choose whichever is smallest
 size_bin=floor(tau*Fs/1000); % convert to the number of samples this is equivalent to
 %% Handing EP Data
-[bep aep] = butter(3,100/(Fs/2),'low'); % 100 Hz lowpass filter
 [bepnf aepnf] = iirnotch(50/(Fs/2),(50/(Fs/2))/35); % 50 Hz notch filter
-DataF_EPlp = filtfilt(bep,aep,Data); % apply lowpass filter
-DataF_EP = filtfilt(bepnf,aepnf,DataF_EPlp); % apply 50 Hz notch filter
+DataF_EP = filtfilt(bepnf,aepnf,Data); % apply 50 Hz notch filter
 %% Segmenting Data
 T = (1:size_bin)*1000/Fs; % make a time vector
 T = T - T(round(length(T)/2));
