@@ -12,20 +12,27 @@ injtime = 9; % Total time of recording
 injnum = 1; % Number of injections per second
 start_trial = 2 ; % Typically we start on the second one to disregard anything weird with timing on the first
 %% Sort the Stimulation Triggers
+%Dummy variables for counting
+j = 1;
+k = 1;
+g = 0;
 for i = 1:length(TT.Stimulations{1})
     trigbois(i) = TT.Stimulations{1}(i);
 end
+
 %% Figuring out Timing Windows
 T_trig = trigbois(1:injnum*injtime,1); % window in ms around event to view
 tau_max = 250; % specify in ms
 Tmax = mean(floor((diff(T_trig)*1000)))/Fs; % find max timing between stims
 tau = min([ tau_max Tmax]); % choose whichever is smallest
 size_bin=floor(tau*Fs/1000); % convert to the number of samples this is equivalent to
+
 %% Handing EP Data
 [bep aep] = butter(3,100/(Fs/2),'low'); % 100 Hz lowpass filter
 [bepnf aepnf] = iirnotch(50/(Fs/2),(50/(Fs/2))/35); % 50 Hz notch filter
 DataF_EPlp = filtfilt(bep,aep,Data); % apply lowpass filter
 DataF_EP = filtfilt(bepnf,aepnf,DataF_EPlp); % apply 50 Hz notch filter
+   
 %% Segmenting Data
 T = (1:size_bin)*1000/Fs; % make a time vector
 T = T - T(round(length(T)/2));
@@ -38,15 +45,18 @@ for iTrig=1:length(T_trig)
     Data_seg(iTrig,:,:)= Data((T_trig(iTrig)-floor(size_bin/2):T_trig(iTrig)+ceil(size_bin/2)-1),:);
     EPall(iTrig,:,:)= DataF_EP((T_trig(iTrig)-floor(size_bin/2):T_trig(iTrig)+ceil(size_bin/2)-1),:);
 end
+
 %% Average the EPs 
 % average all the EP chunks across repeats of EPs
 EP_avg=detrend(squeeze(mean(EPall(start_trial:end,:,:),1)));
+
 %% Analyze the EPs
 % Preallocate the area and amplitude data arrays
 EParea_t = zeros(size(T,2),3);
 EParea_f = zeros(size(T,2),3);
 EPamp_t = zeros(size(T,2),3);
 EPamp_f = zeros(size(T,2),3);
+
 % Calculate the average value of the data before stim event for the first
 % channel
 pstim_line_t(size(EP_avg(:,good_chn(1))),1) = mean(EP_avg(12000:12400,good_chn(1)));
@@ -70,10 +80,12 @@ for l=1:5500 % Only calculating from 0 to 50 milliseconds after stim -- YOU WILL
         EPamp_t(i,3) = EP_avg(i,good_chn(1));
     end
 end
+
 % All this is the same as above just for the second channel of interest. If
 % you have more channels of interest you will need to copy/paste this
 % section and create more variable names, etc.
 pstim_line_f(size(EP_avg(:,good_chn(2))),1) = mean(EP_avg(12000:12400,good_chn(2)));
+
 for l=1:5500 
     i = l + 12000;
     EPdelta_f = EP_avg(i,good_chn(2))-mean(EP_avg(12000:12400,good_chn(2)));
@@ -90,6 +102,7 @@ for l=1:5500
         EPamp_f(i,3) = EP_avg(i,good_chn(2));
     end
 end
+
 % Finding the minimum amplitudes of all the different sections for first
 % channel
 EPamp_min_t(1) = min(EPamp_t(:,1));
@@ -117,9 +130,9 @@ EPcv_t(3) = (4*(good_chn(1)-1))/(T(13902+find(EP_avg(13902:14412,good_chn(1)) <=
 % Finding the conduction velocity for each different section for the second
 % channel -- NOTE: The 4 in the beginning is because we have 4 mm distance
 % between electrodes, you may need to change
-EPcv_f(1) = (4*(good_chn(2)-1))/(T(12764+find(EP_avg(12764:13323,good_chn(2)) <= min(EP_avg(12764:13323,good_chn(2))))));
-EPcv_f(2) = (4*(good_chn(2)-1))/(T(13323+find(EP_avg(13323:13902,good_chn(2)) <= min(EP_avg(13323:13902,good_chn(2))))));
-EPcv_f(3) = (4*(good_chn(2)-1))/(T(13902+find(EP_avg(13902:14412,good_chn(2)) <= min(EP_avg(13902:14412,good_chn(2))))));
+EPcv_t(1) = (4*(good_chn(2)-1))/(T(12764+find(EP_avg(12764:13323,good_chn(2)) <= min(EP_avg(12764:13323,good_chn(2))))));
+EPcv_t(2) = (4*(good_chn(2)-1))/(T(13323+find(EP_avg(13323:13902,good_chn(2)) <= min(EP_avg(13323:13902,good_chn(2))))));
+EPcv_t(3) = (4*(good_chn(2)-1))/(T(13902+find(EP_avg(13902:14412,good_chn(2)) <= min(EP_avg(13902:14412,good_chn(2))))));
 % Store data if you need it for later
 EPstruc(1).EP = Data_seg;
 EPstruc(1).EP_avg = EP_avg;
@@ -148,6 +161,7 @@ bar(T(12001:17500),EParea_t(12001:17500,3)/T_step);
 xlabel('Time ms');
 ylabel('EP uv');
 xlim(xlims)
+
 ep_y_max = round(max(max((1000+EP_avg( T > 2 & T <xlims(2),good_chn)))),-2);
 ep_y_min = -round(max(max((1000-EP_avg( T > 2 & T <xlims(2),good_chn)))),-2);
 ylim([ep_y_min ep_y_max])
@@ -163,6 +177,7 @@ bar(T(12001:17500),EParea_f(12001:17500,3)/T_step);
 xlabel('Time ms');
 ylabel('EP uv');
 xlim(xlims)
+
 ep_y_max = round(max(max((1000+EP_avg( T > 2 & T <xlims(2),good_chn)))),-2);
 ep_y_min = -round(max(max((1000-EP_avg( T > 2 & T <xlims(2),good_chn)))),-2);
 ylim([ep_y_min ep_y_max])

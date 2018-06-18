@@ -1,3 +1,5 @@
+clear all
+%close all
 %% Read the data
 % get the voltages on the desired channels out of the EEG structure
 HDR=ScouseTom_getHDR;
@@ -5,14 +7,15 @@ HDR=ScouseTom_getHDR;
 Trigger=ScouseTom_TrigReadChn(HDR);
 TT=ScouseTom_TrigProcess(Trigger,HDR);
 Fs=HDR.SampleRate;
-Data = sread(HDR,inf,0) ;
-Data(:,18:end) = [] ;
+Data = sread(HDR,inf,0);
+Data(:,20:end) = [];
 
 %% Settings - CHANGE THESE FOR YOUR SPECIFIC EXPERIMENTAL PROTOCOL
 good_chn = [3 4 5 6 7 8 9 10 11 12] ; 
-eit_inj_pairs = [6 7];
+eit_inj_pairs = [4 5];
 eit_freq = 225;
-injtime = 30; %seconds
+eit_cur = 10;
+injtime = 20; %seconds
 injnum = 1; %injections per second
 
 %% Sort the Stimulation Triggers
@@ -101,14 +104,14 @@ for i = 2:2:size(Y,2)-1
         fft_p = fft(Y_bp(:,i+1)); % calculate the fft of the paired
         [mag_s idx_s] = max(abs(fft_s)); % find where the principle frequency is
         [mag_p idx_p] = max(abs(fft_p)); % find where the principle frequency is
-        phase_diff = rad2deg(abs(angle(fft_s(idx_s))-angle(fft_p(idx_p)))); % calculate the phase difference as a check
+        phase_diff(coun) = rad2deg(abs(angle(fft_s(idx_s))-angle(fft_p(idx_p)))); % calculate the phase difference as a check
         % make sure that the phase difference is 180
-        if phase_diff <= 181 && phase_diff >=179
+        %if phase_diff <= 181 && phase_diff >=179
             dV_sigF_sumsub(:,coun) = (Y_bp(:,i+1)-Y_bp(:,i))/2;
             ep_b_eit(:,coun) = (Y(:,i+1)+Y(:,i))/2;
             ep_a_eit(:,coun) = (Y_a(:,i+1)+Y_a(:,i))/2;
             coun = coun + 1;
-        end
+        %end
 end
 
 hupper_sumsub = abs(hilbert(dV_sigF_sumsub)); % take the hilbert transform (i.e. envelope) of the paired signals
@@ -118,11 +121,43 @@ dVm_sumsub=mean(dV_sumsub,2); % find the mean normalized hilbert transform
 dVp_sumsub=100*(dV_sumsub./BV_u_sumsub); % express the voltage as percentage change
 dVpm_sumsub=mean(dVp_sumsub,2); % find the mean percentage change
 
+
+EPstruc(i).EP = Data_seg;
+EPstruc(i).EP_avg = EP_avg;
+EPstruc(i).BVrecmean = BV_mean(eit_inj_pairs(1)-1);
+EPstruc(i).BVlasteitmean = BV_mean(eit_inj_pairs(1+1));
+EPstruc(i).EPmaxf = min(EP_avg(12600:20000,eit_inj_pairs(1)-1));
+EPstruc(i).EPmaxeit = min(EP_avg(12600:20000,eit_inj_pairs(2)));
+EPstruc(i).EPmaxinref = max(EP_avg(14600:20000,18));
+EPstruc(i).EPcv_four = (4*3) / T(12600+find(EP_avg(12600:20000,4) <= min(EP_avg(12600:20000,4))));
+EPstruc(i).EPcv_sev = (4*6) / T(12600+find(EP_avg(12600:20000,7) <= min(EP_avg(12600:20000,7))));
+EPstruc(i).EPcv_elev = (4*10) / T(12600+find(EP_avg(12600:20000,11) <= min(EP_avg(12600:20000,11))));
+t_cent_indx = find(EP_avg(12600:20000,eit_inj_pairs(2)) <= EPstruc(i).EPmaxeit);
+EPstruc(i).EPeiteltime = T(12600+t_cent_indx);
+EPstruc(i).EPmaxftime = T(12600+find(EP_avg(12600:20000,eit_inj_pairs(1)-1) <= EPstruc(i).EPmaxf));
+EPstruc(i).nervez = (BV_mean(eit_inj_pairs(1))-BV_mean(eit_inj_pairs(2)))/(eit_cur);
+EPstruc(i).backcur_fivefour = (BV_mean(eit_inj_pairs(1)-1)-BV_mean(eit_inj_pairs(1)))/(EPstruc(i).nervez);
+EPstruc(i).backcur_sixseven = (BV_mean(eit_inj_pairs(2))-BV_mean(eit_inj_pairs(2)+1))/(EPstruc(i).nervez);
+pstim_line(size(dVm_sumsub),1) = mean(dVm_sumsub(12000:12400));
+dVa = [];
+for l=1:5500
+    dVdelta = dVm_sumsub(l+12000)-mean(dVm_sumsub(12000:12400));
+    dVa(l) = T_step*dVdelta;
+end
+dVstruc(i).dV = dV_sumsub;
+dVstruc(i).dVp = dVp_sumsub;
+dVstruc(i).dVa = sum(dVa);
+dVstruc(i).dVpmmin = min(dVpm_sumsub(12600+t_cent_indx-200:12600+t_cent_indx+200)); %finding max dZ within 2 ms window from CAP on last EIT electrode
+dVstruc(i).dVpmintime = T(12600+t_cent_indx-200+find(dVpm_sumsub(12600+t_cent_indx-200:12600+t_cent_indx+200) <= dVstruc(i).dVpmmin));
+dVstruc(i).dVmmin = min(dVm_sumsub(12600+t_cent_indx-200:12600+t_cent_indx+200)); %finding max dZ within 2 ms window from CAP on last EIT electrode
+dVstruc(i).dVmintime = T(12600+t_cent_indx-200+find(dVm_sumsub(12600+t_cent_indx-200:12600+t_cent_indx+200) <= dVstruc(i).dVmmin));
+
 %% OTHER CALCS
-start_ep_b = 5.8544e3;
-start_ep_a = 4.0698e3;
-start_area_b = 2.6865e4;
-start_area_a = 1.9934e4;
+%{
+start_ep_b = 4.3354e3;
+start_ep_a = 2.2883e3;
+start_area_b = 6.6108e4;
+start_area_a = 1.5299e4;
 
 ep_b_eit_m = mean(ep_b_eit,2);
 ep_a_eit_m = mean(ep_a_eit,2);
@@ -133,14 +168,14 @@ ep_a_bl = mean(ep_a_eit_m(T > -20 & T < -10));
 ep_b_min = (abs(ep_b_bl - min(ep_b_eit_m(T > 2 & T < 30)))/start_ep_b)*100;
 ep_a_min = (abs(ep_a_bl - min(ep_a_eit_m(T > 2 & T < 30)))/start_ep_a)*100;
 
-for i = 1:(15500-12700)
+for i = 1:(17500-12700)
     ep_b_area(i) = T_step*(abs(ep_b_bl - ep_b_eit(12700+i)));
     ep_a_area(i) = T_step*(abs(ep_a_bl - ep_a_eit(12700+i)));
 end
 
 ep_b_tot = (sum(ep_b_area)/start_area_b)*100;
 ep_a_tot = (sum(ep_a_area)/start_area_a)*100;
-
+%}
 %% Plotting Everything
 
 figure;
