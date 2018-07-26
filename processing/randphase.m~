@@ -10,9 +10,9 @@ Data(:,18:end) = [] ;
 
 %% Settings - CHANGE THESE FOR YOUR SPECIFIC EXPERIMENTAL PROTOCOL
 good_chn = [3 4 5 6 7 8 9 10 11 12] ; 
-eit_inj_pairs = [6 7];
+eit_inj_pairs = [8 9];
 eit_freq = 225;
-injtime = 72; %seconds
+injtime = ; %seconds
 injnum = 5; %injections per second
 
 
@@ -56,11 +56,11 @@ Fc = 225;
 %}
 
 %% Filtering EPs from Raw Data
-[bep aep] = butter(3,100/(Fs/2),'low'); % 100 Hz lowpass filter
+%[bep aep] = butter(3,100/(Fs/2),'low'); % 100 Hz lowpass filter
 [bepn aepn] = iirnotch(eit_freq/(Fs/2),(eit_freq/(Fs/2))/35); % EIT frequency specific notch filter
 [bepnf aepnf] = iirnotch(50/(Fs/2),(50/(Fs/2))/35); % 50 Hz notch filter
-DataF_EPlp = filtfilt(bep,aep,Data); % apply lowpass filter
-DataF_EPlpn = filtfilt(bepn,aepn,DataF_EPlp); % apply EIT frequency specific notch filter
+%DataF_EPlp = filtfilt(bep,aep,Data); % apply lowpass filter
+DataF_EPlpn = filtfilt(bepn,aepn,Data); % apply EIT frequency specific notch filter
 DataF_EP = filtfilt(bepnf,aepnf,DataF_EPlpn); % apply 50 Hz notch filter
 
 %{
@@ -108,8 +108,13 @@ EP_avg=detrend(squeeze(mean(EPall(start_trial:end,:,:),1)));
 %EIT_BVstd=std(EIT_BV);
 %% Find the BVs
 
-for i = 1:size(
-BV_u_sumsub= mean(hupper_sumsub(T > - 80 & T < -20,:));
+for i = 1:size(Data_seg,3)
+    BV_sig = Data_seg(:,:,i)';
+    hupper_bv = abs(hilbert(BV_sig));
+    BV_all(:,i) = mean(hupper_bv(T > - 80 & T < -20,:));
+    BV_mean = mean(BV_all,1);
+    BV_std = std(BV_all);
+end
 
 %% EIT Set-up
 
@@ -129,29 +134,32 @@ Y_bp=filtfilt(bbp,abp,Y); % filter the data with the bandpass
 % NOTE: Doing this filtering before the summation subtraction eliminates low
 % frequency noise that can throw off the pairing
 
-% set up to match the phases in the randomized summation subtraction
-coun = 1;
-for i = 2:2:size(Y,2)-1
-        fft_s = fft(Y_bp(:,i)); % calculate the fft of the signal
-        fft_p = fft(Y_bp(:,i+1)); % calculate the fft of the paired
-        [mag_s idx_s] = max(abs(fft_s)); % find where the principle frequency is
-        [mag_p idx_p] = max(abs(fft_p)); % find where the principle frequency is
-        phase_diff = rad2deg(abs(angle(fft_s(idx_s))-angle(fft_p(idx_p)))); % calculate the phase difference as a check
-        % make sure that the phase difference is 180
-        if phase_diff <= 181 && phase_diff >=179
-            dV_sigF_sumsub(:,coun) = (Y_bp(:,i+1)-Y_bp(:,i))/2;
-            ep_sumsub(:,coun) = (Y_bp(:,i+1)+Y_bp(:,i))/2;
-            coun = coun + 1;
-        end
-end
 
-hupper_sumsub = abs(hilbert(dV_sigF_sumsub)); % take the hilbert transform (i.e. envelope) of the paired signals
+hupper_sumsub = abs(hilbert(Y_bp)); % take the hilbert transform (i.e. envelope) of the paired signals
 BV_u_sumsub= mean(hupper_sumsub(T > - 80 & T < -20,:)); % find the mean of the boundary voltages for each pair
 dV_sumsub=hupper_sumsub-BV_u_sumsub; % normalize the hilbert transform by the boundary voltage 
 dVm_sumsub=mean(dV_sumsub,2); % find the mean normalized hilbert transform
 dVp_sumsub=100*(dV_sumsub./BV_u_sumsub); % express the voltage as percentage change
 dVpm_sumsub=mean(dVp_sumsub,2); % find the mean percentage change
 
+mep_a_eit = mean(EPall(:,(T > - 80 & T < -20),6)');
+mep_b_eit = mean(EPall(:,(T > - 80 & T < -20),3)');
+ep_b_eit = EPall(:,:,3)' - mep_b_eit;
+ep_a_eit = EPall(:,:,6)' - mep_a_eit;
+% set up to match the phases in the randomized summation subtraction
+
+coun = 1;
+for i = 2:2:size(Y,2)-1
+        vdiff_b(:,coun) = (ep_b_eit(:,i+1)-ep_b_eit(:,i))/2;
+        dzdiff_b(:,coun) = 100*(vdiff_b(:,coun)/BV_mean(eit_inj_pairs(1)-1));
+        coun = coun + 1;
+end
+hupper_dzdiff = abs(hilbert(dzdiff_b));
+figure;
+hold on
+plot(T,(hupper_dzdiff),'color',[0.7 0.7 0.7]);
+plot(T,mean(hupper_dzdiff,2),'linewidth',3);
+xlim(xlims);
 %{
 %% EIT with Random Phase
 dV_sig_orig = Y;
@@ -246,7 +254,7 @@ ylim([ep_y_min ep_y_max])
 legend(h1,HDR.Label{good_chn})
 
 subplot(2,1,2)
-errorbar(EIT_BVm/1000,EIT_BVstd/1000);
+errorbar(BV_mean/1000,BV_std/1000);
 xlabel('Electrode');
 ylabel('BV mV')
 title('Boundary Voltages')

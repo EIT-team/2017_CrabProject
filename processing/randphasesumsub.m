@@ -1,5 +1,5 @@
 clear all
-%close all
+
 %% Read the data
 % get the voltages on the desired channels out of the EEG structure
 HDR=ScouseTom_getHDR;
@@ -8,20 +8,20 @@ Trigger=ScouseTom_TrigReadChn(HDR);
 TT=ScouseTom_TrigProcess(Trigger,HDR);
 Fs=HDR.SampleRate;
 Data = sread(HDR,inf,0);
-Data(:,20:end) = [];
+Data(:,22:end) = [];
 
 %% Settings - CHANGE THESE FOR YOUR SPECIFIC EXPERIMENTAL PROTOCOL
-good_chn = [3 4 5 6 7 8 9 10 11 12] ; 
-eit_inj_pairs = [4 5];
+good_chn = [3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20] ; 
+eit_inj_pairs = [5 6];
+injtime = 30; % Total time of recording
+injnum = 1; % Number of injections per second
 eit_freq = 225;
+eit_bw = 100;
 eit_cur = 10;
-injtime = 20; %seconds
-injnum = 1; %injections per second
-
 %% Sort the Stimulation Triggers
 j = 1;
 k = 1;
-g = 0;
+
 for i = 1:length(TT.Stimulations{1})
     trigbois(j,k) = TT.Stimulations{1}(i);
     j = j+1;
@@ -31,24 +31,24 @@ for i = 1:length(TT.Stimulations{1})
     end
 end
 
+
+    
 %% Other Settings - No need to change
 xlims = [-5 40];
 other_chn = 1:size(Data,2) ;
-start_trial = 4 ; % trial we want to start with, for some reason the first few are fucked
 
 %% Figuring out Timing Windows
 T_trig = trigbois(1:injnum*injtime,1); % window in ms around event to view
 tau_max = 250; % specify in ms
 Tmax = mean(floor((diff(T_trig)*1000)))/Fs; % find max timing between stims
-tau = min([ tau_max Tmax]); % choose whichever is smallest
+tau = min([tau_max Tmax]); % choose whichever is smallest
 size_bin=floor(tau*Fs/1000); % convert to the number of samples this is equivalent to
 
 %% Filtering EPs from Raw Data
-[bep aep] = butter(3,100/(Fs/2),'low'); % 100 Hz lowpass filter
+
 [bepn aepn] = iirnotch(eit_freq/(Fs/2),(eit_freq/(Fs/2))/35); % EIT frequency specific notch filter
 [bepnf aepnf] = iirnotch(50/(Fs/2),(50/(Fs/2))/35); % 50 Hz notch filter
-DataF_EPlp = filtfilt(bep,aep,Data); % apply lowpass filter
-DataF_EPlpn = filtfilt(bepn,aepn,DataF_EPlp); % apply EIT frequency specific notch filter
+DataF_EPlpn = filtfilt(bepn,aepn,Data); % apply EIT frequency specific notch filter
 DataF_EP = filtfilt(bepnf,aepnf,DataF_EPlpn); % apply 50 Hz notch filter
 
 %% Segmenting Data
@@ -67,7 +67,7 @@ end
 
 %% Average the EPs 
 % average all the EP chunks across repeats of EPs
-EP_avg=detrend(squeeze(mean(EPall(start_trial:end,:,:),1)));
+EP_avg=detrend(squeeze(mean(EPall(2:injtime-1,:,:),1)));
 
 %% Find the BVs
 for i = 1:size(Data_seg,3)
@@ -86,18 +86,23 @@ if mod(size(Y,2),2)==1
     Y = Y(:,2:end);
     Y_a = Y_a(:,2:end);
 end
+Y_bp = Y;
 % Band pass filtering
-BW = 100; % bandwidth
 Fc = eit_freq; % center frequency
+BW = eit_bw; % bandwidth
 F6dB1=Fc-BW; % calculated center frequency minus bandwidth
 F6dB2=Fc+BW; % calculated center frequency plus bandwidth
 [bbp,abp] = butter(3,[F6dB1 F6dB2]/(Fs/2)); % set up the bandpass filter
-Y_bp=filtfilt(bbp,abp,Y); % filter the data with the bandpass
-
+%Y_bp=filtfilt(bbp,abp,Y); % filter the data with the bandpass
 % NOTE: Doing this filtering before the summation subtraction eliminates low
 % frequency noise that can throw off the pairing
-
+%mep_b_eit = mean(ep_b_eit(T > - 80 & T < -20,:));
+mep_a_eit = mean(EPall(:,(T > - 80 & T < -20),6)');
+mep_b_eit = mean(EPall(:,(T > - 80 & T < -20),3)');
+ep_b_eit = EPall(:,:,3)' - mep_b_eit;
+ep_a_eit = EPall(:,:,6)' - mep_a_eit;
 % set up to match the phases in the randomized summation subtraction
+
 coun = 1;
 for i = 2:2:size(Y,2)-1
         fft_s = fft(Y_bp(:,i)); % calculate the fft of the signal
@@ -105,15 +110,36 @@ for i = 2:2:size(Y,2)-1
         [mag_s idx_s] = max(abs(fft_s)); % find where the principle frequency is
         [mag_p idx_p] = max(abs(fft_p)); % find where the principle frequency is
         phase_diff(coun) = rad2deg(abs(angle(fft_s(idx_s))-angle(fft_p(idx_p)))); % calculate the phase difference as a check
+        [r_a, lag_a] = xcorr(ep_a_eit(:,i),ep_a_eit(:,i+1));
+        [~,I_a] = max(abs(r_a));
+        lagDiff_a(coun) = lag_a(I_a)/Fs;
+        vdiff_a(coun) = min(ep_a_eit(12800:15000,i)-ep_a_eit(12800:15000,i+1));
+        
+        [r_b, lag_b] = xcorr(ep_b_eit(:,i),ep_b_eit(:,i+1));
+        [~,I_b] = max(abs(r_b));
+        lagDiff_b(coun) = lag_b(I_b)/Fs;
+        vdiff_b(:,coun) = (ep_b_eit(:,i+1)-ep_b_eit(:,i))/2;
+        dzdiff_b(:,coun) = 100*(vdiff_b(:,coun)/BV_mean(eit_inj_pairs(1)-1));
+
         % make sure that the phase difference is 180
         %if phase_diff <= 181 && phase_diff >=179
             dV_sigF_sumsub(:,coun) = (Y_bp(:,i+1)-Y_bp(:,i))/2;
-            ep_b_eit(:,coun) = (Y(:,i+1)+Y(:,i))/2;
-            ep_a_eit(:,coun) = (Y_a(:,i+1)+Y_a(:,i))/2;
+            %ep_b_eit(:,coun) = (Y(:,i+1)+Y(:,i))/2;
+            %ep_a_eit(:,coun) = (Y_a(:,i+1)+Y_a(:,i))/2;
             coun = coun + 1;
         %end
 end
+%}
 
+dzdiff_b = filtfilt(bbp,abp,dzdiff_b);
+hupper_dzdiff = abs(hilbert(dzdiff_b));
+figure;
+hold on
+plot(T,(hupper_dzdiff),'color',[0.7 0.7 0.7]);
+plot(T,mean(hupper_dzdiff,2),'linewidth',3);
+xlim(xlims);
+
+dV_sigF_sumsub=filtfilt(bbp,abp,dV_sigF_sumsub); % filter the data with the bandpass
 hupper_sumsub = abs(hilbert(dV_sigF_sumsub)); % take the hilbert transform (i.e. envelope) of the paired signals
 BV_u_sumsub= mean(hupper_sumsub(T > - 80 & T < -20,:)); % find the mean of the boundary voltages for each pair
 dV_sumsub=hupper_sumsub-BV_u_sumsub; % normalize the hilbert transform by the boundary voltage 
@@ -121,36 +147,39 @@ dVm_sumsub=mean(dV_sumsub,2); % find the mean normalized hilbert transform
 dVp_sumsub=100*(dV_sumsub./BV_u_sumsub); % express the voltage as percentage change
 dVpm_sumsub=mean(dVp_sumsub,2); % find the mean percentage change
 
-
-EPstruc(i).EP = Data_seg;
-EPstruc(i).EP_avg = EP_avg;
-EPstruc(i).BVrecmean = BV_mean(eit_inj_pairs(1)-1);
-EPstruc(i).BVlasteitmean = BV_mean(eit_inj_pairs(1+1));
-EPstruc(i).EPmaxf = min(EP_avg(12600:20000,eit_inj_pairs(1)-1));
-EPstruc(i).EPmaxeit = min(EP_avg(12600:20000,eit_inj_pairs(2)));
-EPstruc(i).EPmaxinref = max(EP_avg(14600:20000,18));
-EPstruc(i).EPcv_four = (4*3) / T(12600+find(EP_avg(12600:20000,4) <= min(EP_avg(12600:20000,4))));
-EPstruc(i).EPcv_sev = (4*6) / T(12600+find(EP_avg(12600:20000,7) <= min(EP_avg(12600:20000,7))));
-EPstruc(i).EPcv_elev = (4*10) / T(12600+find(EP_avg(12600:20000,11) <= min(EP_avg(12600:20000,11))));
-t_cent_indx = find(EP_avg(12600:20000,eit_inj_pairs(2)) <= EPstruc(i).EPmaxeit);
-EPstruc(i).EPeiteltime = T(12600+t_cent_indx);
-EPstruc(i).EPmaxftime = T(12600+find(EP_avg(12600:20000,eit_inj_pairs(1)-1) <= EPstruc(i).EPmaxf));
-EPstruc(i).nervez = (BV_mean(eit_inj_pairs(1))-BV_mean(eit_inj_pairs(2)))/(eit_cur);
-EPstruc(i).backcur_fivefour = (BV_mean(eit_inj_pairs(1)-1)-BV_mean(eit_inj_pairs(1)))/(EPstruc(i).nervez);
-EPstruc(i).backcur_sixseven = (BV_mean(eit_inj_pairs(2))-BV_mean(eit_inj_pairs(2)+1))/(EPstruc(i).nervez);
+EPstruc(1).EP = Data_seg;
+EPstruc(1).EP_avg = EP_avg;
+EPstruc(1).BVrecmean = BV_mean(eit_inj_pairs(1)-1);
+EPstruc(1).BVlasteitmean = BV_mean(eit_inj_pairs(2));
+EPstruc(1).EPmaxf = min(EP_avg(12600:20000,eit_inj_pairs(1)-1));
+EPstruc(1).EPmaxeit = min(EP_avg(12600:20000,eit_inj_pairs(2)));
+EPstruc(1).EPmaxinref = max(EP_avg(14600:20000,18));
+EPstruc(1).EPcv_four = (4*3) / T(12600+find(EP_avg(12600:20000,4) <= min(EP_avg(12600:20000,4))));
+EPstruc(1).EPcv_sev = (4*6) / T(12600+find(EP_avg(12600:20000,7) <= min(EP_avg(12600:20000,7))));
+EPstruc(1).EPcv_elev = (4*10) / T(12600+find(EP_avg(12600:20000,11) <= min(EP_avg(12600:20000,11))));
+t_cent_indx = find(EP_avg(12600:20000,eit_inj_pairs(2)) <= EPstruc(1).EPmaxeit);
+EPstruc(1).EPeiteltime = T(12600+t_cent_indx);
+EPstruc(1).EPmaxftime = T(12600+find(EP_avg(12600:20000,eit_inj_pairs(1)-1) >= EPstruc(1).EPmaxf));
+EPstruc(1).nervez = (BV_mean(eit_inj_pairs(1))-BV_mean(eit_inj_pairs(2)))/(eit_cur);
+EPstruc(1).backcur_fivefour = (BV_mean(eit_inj_pairs(1)-1)-BV_mean(eit_inj_pairs(1)))/(EPstruc(1).nervez);
+EPstruc(1).backcur_sixseven = (BV_mean(eit_inj_pairs(2))-BV_mean(eit_inj_pairs(2)+1))/(EPstruc(1).nervez);
 pstim_line(size(dVm_sumsub),1) = mean(dVm_sumsub(12000:12400));
 dVa = [];
 for l=1:5500
     dVdelta = dVm_sumsub(l+12000)-mean(dVm_sumsub(12000:12400));
     dVa(l) = T_step*dVdelta;
 end
-dVstruc(i).dV = dV_sumsub;
-dVstruc(i).dVp = dVp_sumsub;
-dVstruc(i).dVa = sum(dVa);
-dVstruc(i).dVpmmin = min(dVpm_sumsub(12600+t_cent_indx-200:12600+t_cent_indx+200)); %finding max dZ within 2 ms window from CAP on last EIT electrode
-dVstruc(i).dVpmintime = T(12600+t_cent_indx-200+find(dVpm_sumsub(12600+t_cent_indx-200:12600+t_cent_indx+200) <= dVstruc(i).dVpmmin));
-dVstruc(i).dVmmin = min(dVm_sumsub(12600+t_cent_indx-200:12600+t_cent_indx+200)); %finding max dZ within 2 ms window from CAP on last EIT electrode
-dVstruc(i).dVmintime = T(12600+t_cent_indx-200+find(dVm_sumsub(12600+t_cent_indx-200:12600+t_cent_indx+200) <= dVstruc(i).dVmmin));
+dVstruc(1).dV = dV_sumsub;
+dVstruc(1).dVp = dVp_sumsub;
+dVstruc(1).dVa = sum(dVa);
+dVstruc(1).dVpmmin = min(dVpm_sumsub(12600+t_cent_indx-200:12600+t_cent_indx+200)); %finding max dZ within 2 ms window from CAP on last EIT electrode
+dVstruc(1).dVpmmax = max(dVpm_sumsub(12600+t_cent_indx-200:12600+t_cent_indx+200)); %finding max dZ within 2 ms window from CAP on last EIT electrode
+dVstruc(1).dVpmintime = T(12600+t_cent_indx-200+find(dVpm_sumsub(12600+t_cent_indx-200:12600+t_cent_indx+200) <= dVstruc(1).dVpmmin));
+dVstruc(1).dVpmaxtime = T(12600+t_cent_indx-200+find(dVpm_sumsub(12600+t_cent_indx-200:12600+t_cent_indx+200) <= dVstruc(1).dVpmmax));
+dVstruc(1).dVmmin = min(dVm_sumsub(12600+t_cent_indx-200:12600+t_cent_indx+200)); %finding max dZ within 2 ms window from CAP on last EIT electrode
+dVstruc(1).dVmmax = max(dVm_sumsub(12600+t_cent_indx-200:12600+t_cent_indx+200)); %finding max dZ within 2 ms window from CAP on last EIT electrode
+dVstruc(1).dVmintime = T(12600+t_cent_indx-200+find(dVm_sumsub(12600+t_cent_indx-200:12600+t_cent_indx+200) <= dVstruc(1).dVmmin));
+dVstruc(1).dVmaxtime = T(12600+t_cent_indx-200+find(dVm_sumsub(12600+t_cent_indx-200:12600+t_cent_indx+200) <= dVstruc(1).dVmmax));
 
 %% OTHER CALCS
 %{
@@ -180,76 +209,64 @@ ep_a_tot = (sum(ep_a_area)/start_area_a)*100;
 
 figure;
 subplot(2,1,1);
+set(gca,'FontSize',18)
 hold on
-title(sprintf('Simple Coherent Averaging of EP - Trial: %d\n',i));
-h1=plot(T,EP_avg(:,good_chn),'linewidth',3);
-xlabel('Time ms');
-ylabel('EP uv');
+title(sprintf('Simple Coherent Averaging of EP - Trial: %d\n',i),'FontSize', 18);
+h1=plot(T,(EP_avg(:,good_chn))/1000,'linewidth',4);
+xlabel('Time (ms)','FontSize', 18);
+ylabel('EP (mV)','FontSize', 18);
 xlim(xlims)
-ep_y_max = round(max(max((1000+EP_avg( T > 2 & T <xlims(2),good_chn)))),-2);
-ep_y_min = -round(max(max((1000-EP_avg( T > 2 & T <xlims(2),good_chn)))),-2);
+ep_y_max = (round(max(max((1000+EP_avg( T > 2 & T <xlims(2),good_chn)))),-2))/1000;
+ep_y_min = (-round(max(max((1000-EP_avg( T > 2 & T <xlims(2),good_chn)))),-2))/1000;
 ylim([ep_y_min ep_y_max])
 legend(h1,HDR.Label{good_chn})
-subplot(2,1,2)
-errorbar(BV_mean/1000,BV_std/1000);
-xlabel('Electrode');
-ylabel('BV mV')
-title('Boundary Voltages')
+subplot(2,1,2);
+set(gca,'FontSize',18)
+errorbar(BV_mean/1000,BV_std/1000,'linewidth',3);
+xlabel('Electrode','FontSize', 18);
+ylabel('BV (mV)','FontSize', 18)
+title('Boundary Voltages','FontSize', 18)
 drawnow
 
 colorinc = 0;
 figure;
+set(gca,'FontSize',18)
 hold on
 for v = 1:size(EPall,1)
-    plot(T,detrend(EPall(v,:,eit_inj_pairs(1)-1)),'color',[1-colorinc 0 0]);
+    plot(T,(detrend(EPall(v,:,eit_inj_pairs(1)-1)))/1000,'color',[1-colorinc 0 0], 'linewidth',3);
     colorinc = colorinc + 1/(size(EPall,1));
 end
-xlabel('Time ms');
-ylabel('EP uv');
+xlabel('Time (ms)','FontSize', 18);
+ylabel('EP (mV)','FontSize', 18);
 xlim(xlims);
-title(sprintf('CAP over all trials on elec %d\n',eit_inj_pairs(1)-1));
+ylim([-15 10]);
+title(sprintf('CAP over all trials on elec %d\n',eit_inj_pairs(1)-1),'FontSize', 18);
 hold off
 drawnow;
 
 colorinc = 0;
 figure;
+set(gca,'FontSize',18)
 hold on
 for v = 1:size(EPall,1)
-    plot(T,detrend(EPall(v,:,eit_inj_pairs(2)+1)),'color',[1-colorinc 0 0]);
+    plot(T,(detrend(EPall(v,:,eit_inj_pairs(2)+1)))/1000,'color',[1-colorinc 0 0],'linewidth',3);
     colorinc = colorinc + 1/(size(EPall,1));
 end
-xlabel('Time ms');
-ylabel('EP uv');
+xlabel('Time (ms)','FontSize', 18);
+ylabel('EP (mV)','FontSize', 18);
 xlim(xlims);
-title(sprintf('CAP over all trials on elec %d\n',eit_inj_pairs(2)+1));
+title(sprintf('CAP over all trials on elec %d\n',eit_inj_pairs(2)+1),'FontSize', 18);
 hold off
-drawnow;
-%{    
-figure;
-plot(T,Y);
-title('Pre Bandpass Signal');
-xlim(xlims);
-drawnow;    
-    
-figure;
-plot(T,dV_sigF_sumsub);
-title('Post Bandpass Subtracted Signal');
-xlim(xlims);
 drawnow;
 
 figure;
-plot(T,hupper_sumsub);
-title('Post Hilbert Transform Signal');
-xlim(xlims);
-drawnow;
-%}
-figure;
+set(gca,'FontSize',18)
 hold on
-plot(T,(dVp_sumsub),'color',[0.7 0.7 0.7]);
-plot(T,dVpm_sumsub,'linewidth',3);
-title(sprintf('dVp on elec %d\n',eit_inj_pairs(1)-1));
-ylabel('%');
-xlabel('T ms');
+plot(T,(dVp_sumsub),'color',[0.7 0.7 0.7],'linewidth', 3);
+plot(T,dVpm_sumsub,'linewidth',6);
+title(sprintf('dVp on elec %d\n',eit_inj_pairs(1)-1),'FontSize', 18);
+ylabel('%','FontSize', 18);
+xlabel('T ms','FontSize', 18);
 hold off
 xlim(xlims);
 drawnow;
