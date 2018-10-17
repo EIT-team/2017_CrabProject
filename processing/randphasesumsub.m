@@ -11,12 +11,12 @@ Data = sread(HDR,inf,0);
 Data(:,22:end) = [];
 
 %% Settings - CHANGE THESE FOR YOUR SPECIFIC EXPERIMENTAL PROTOCOL
-good_chn = [3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20] ; 
+good_chn = [3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19] ; 
 eit_inj_pairs = [4 5];
 injtime = 30; % Total time of recording
 injnum = 1; % Number of injections per second
-eit_freq = 5000;
-eit_bw = 100;
+eit_freq = 3000;
+eit_bw = 200;%eit_freq - 125;
 eit_cur = 10;
 %% Sort the Stimulation Triggers
 j = 1;
@@ -37,7 +37,7 @@ other_chn = 1:size(Data,2) ;
 
 %% Figuring out Timing Windows
 T_trig = trigbois(1:injnum*injtime,1); % window in ms around event to view
-tau_max = 250; % specify in ms
+tau_max = 500; % specify in ms
 Tmax = mean(floor((diff(T_trig)*1000)))/Fs; % find max timing between stims
 tau = min([tau_max Tmax]); % choose whichever is smallest
 size_bin=floor(tau*Fs/1000); % convert to the number of samples this is equivalent to
@@ -97,15 +97,15 @@ F6dB2=Fc+BW; % calculated center frequency plus bandwidth
 %Y_bp=filtfilt(bbp,abp,Y); % filter the data with the bandpass
 % NOTE: Doing this filtering before the summation subtraction eliminates low
 % frequency noise that can throw off the pairing
-%mep_b_eit = mean(ep_b_eit(T > - 80 & T < -20,:));
-mep_a_eit = mean(EPall(:,(T > - 80 & T < -20),6)');
-mep_b_eit = mean(EPall(:,(T > - 80 & T < -20),3)');
-ep_b_eit = EPall(:,:,3)' - mep_b_eit;
-ep_a_eit = EPall(:,:,6)' - mep_a_eit;
+mep_a_eit = mean(EPall(:,(T > - 80 & T < -20),eit_inj_pairs(2)+1)');
+mep_b_eit = mean(EPall(:,(T > - 80 & T < -20),eit_inj_pairs(1)-1)');
+ep_b_eit = EPall(:,:,eit_inj_pairs(1)-1)' - mep_b_eit;
+ep_a_eit = EPall(:,:,eit_inj_pairs(2)+1)' - mep_a_eit;
+mean_ep_b_eit = mean(ep_b_eit,2);
 % set up to match the phases in the randomized summation subtraction
 
 if mod(injtime,2) == 0
-        start_trial = 2;
+    start_trial = 2;
 end
 if mod(injtime,2) == 1;
     start_trial = 1;
@@ -123,12 +123,11 @@ for i = start_trial:2:size(Y,2)-1
         [r_a, lag_a] = xcorr(ep_a_eit(:,i),ep_a_eit(:,i+1));
         [~,I_a] = max(abs(r_a));
         lagDiff_a(coun) = lag_a(I_a)/Fs;
-        
         [r_b, lag_b] = xcorr(ep_b_eit(:,i),ep_b_eit(:,i+1));
         [~,I_b] = max(abs(r_b));
         lagDiff_b(coun) = lag_b(I_b)/Fs;
         % make sure that the phase difference is 180
-        if phase_diff(coun) <= 182 && phase_diff(coun) >=178
+        if phase_diff(coun) <= 190 && phase_diff(coun) >= 160
             testsig = abs(ep_b_eit(:,i)-ep_b_eit(:,i+1));
             %vdiff_b(:,coun) = abs(ep_b_eit(:,i)-ep_b_eit(:,i+1));
             threshmax = mean(max(testsig((T > - 80 & T < -20))));
@@ -137,9 +136,7 @@ for i = start_trial:2:size(Y,2)-1
             vdiff_b(:,coun) = testsig;
             dzdiff_b(:,coun) = 100*(vdiff_b(:,coun)/BV_mean(eit_inj_pairs(1)-1));
             dV_sigF_sumsub(:,coun) = (Y_bp(:,i+1)-Y_bp(:,i))/2;
-            %ep_b_eit(:,coun) = (Y(:,i+1)+Y(:,i))/2;
-            %ep_a_eit(:,coun) = (Y_a(:,i+1)+Y_a(:,i))/2;
-        coun = coun + 1;
+            coun = coun + 1;
         end
 end
 
@@ -149,8 +146,8 @@ dzdiff_norm = hupper_dzdiff - BV_u_dzdiff;
 BV_pre_dzdiff = mean(dzdiff_b(T > -80 & T < -20,:));
 dzdiff_pre_norm = dzdiff_b - BV_pre_dzdiff;
 
-dV_sigF_sumsub=filtfilt(bbp,abp,dV_sigF_sumsub); % filter the data with the bandpass
-hupper_sumsub = abs(hilbert(dV_sigF_sumsub)); % take the hilbert transform (i.e. envelope) of the paired signals
+dV_sigF_sumsub_pre=filtfilt(bbp,abp,dV_sigF_sumsub); % filter the data with the bandpass
+hupper_sumsub = abs(hilbert(dV_sigF_sumsub_pre)); % take the hilbert transform (i.e. envelope) of the paired signals
 BV_u_sumsub= mean(hupper_sumsub(T > - 80 & T < -20,:)); % find the mean of the boundary voltages for each pair
 dV_sumsub=hupper_sumsub-BV_u_sumsub; % normalize the hilbert transform by the boundary voltage 
 dVm_sumsub=mean(dV_sumsub,2); % find the mean normalized hilbert transform
@@ -161,35 +158,38 @@ EPstruc(1).EP = Data_seg;
 EPstruc(1).EP_avg = EP_avg;
 EPstruc(1).BVrecmean = BV_mean(eit_inj_pairs(1)-1);
 EPstruc(1).BVlasteitmean = BV_mean(eit_inj_pairs(2));
-EPstruc(1).EPmaxf = min(EP_avg(12620:20000,eit_inj_pairs(1)-1));
-EPstruc(1).EPmaxeit = min(EP_avg(12620:20000,eit_inj_pairs(2)));
-EPstruc(1).EPmaxinref = max(EP_avg(14600:20000,18));
-EPstruc(1).EPcv_four = (4*3) / T(12600+find(EP_avg(12600:20000,4) <= min(EP_avg(12600:20000,4))));
-EPstruc(1).EPcv_sev = (4*6) / T(12600+find(EP_avg(12600:20000,7) <= min(EP_avg(12600:20000,7))));
-EPstruc(1).EPcv_elev = (4*10) / T(12600+find(EP_avg(12600:20000,11) <= min(EP_avg(12600:20000,11))));
-t_cent_indx = find(EP_avg(12620:20000,eit_inj_pairs(2)) <= EPstruc(1).EPmaxeit);
-EPstruc(1).EPeiteltime = T(12620+t_cent_indx);
-EPstruc(1).EPmaxftime = T(12620+find(EP_avg(12620:20000,eit_inj_pairs(1)-1) <= EPstruc(1).EPmaxf));
+EPstruc(1).EPmaxf = min(EP_avg(T >= 1 & T <= 75,eit_inj_pairs(1)-1));
+EPstruc(1).EPmaxeit = min(EP_avg(T >= 1 & T <= 75,eit_inj_pairs(2)));
+EPstruc(1).EPmaxinref = max(EP_avg(T >= 21 & T <= 75,18));
+%EPstruc(1).EPcv_four = (4*3) / T(12600+find(EP_avg(12600:20000,4) <= min(EP_avg(12600:20000,4))));
+%EPstruc(1).EPcv_sev = (4*6) / T(12600+find(EP_avg(12600:20000,7) <= min(EP_avg(12600:20000,7))));
+%EPstruc(1).EPcv_elev = (4*10) / T(12600+find(EP_avg(12600:20000,11) <= min(EP_avg(12600:20000,11))));
+t_cent_indx = find(EP_avg(T >= 1 & T <= 75,eit_inj_pairs(2)) <= EPstruc(1).EPmaxeit);
+EPstruc(1).EPeiteltime = T(find(T==1)+t_cent_indx);
+EPstruc(1).EPmaxftime = T(find(T==1)+find(EP_avg(T >= 1 & T <= 75,eit_inj_pairs(1)-1) <= EPstruc(1).EPmaxf));
 EPstruc(1).nervez = (BV_mean(eit_inj_pairs(1))-BV_mean(eit_inj_pairs(2)))/(eit_cur);
 EPstruc(1).backcur_fivefour = (BV_mean(eit_inj_pairs(1)-1)-BV_mean(eit_inj_pairs(1)))/(EPstruc(1).nervez);
 EPstruc(1).backcur_sixseven = (BV_mean(eit_inj_pairs(2))-BV_mean(eit_inj_pairs(2)+1))/(EPstruc(1).nervez);
-pstim_line(size(dVm_sumsub),1) = mean(dVm_sumsub(12000:12400));
+pstim_line(size(dVm_sumsub),1) = mean(dVm_sumsub(T >= -5 & T <= -1));
 dVa = [];
-for l=1:5500
-    dVdelta = dVm_sumsub(l+12000)-mean(dVm_sumsub(12000:12400));
-    dVa(l) = T_step*dVdelta;
+ep_area = [];
+for l=1:4000
+    epdelta = mean_ep_b_eit(l+find(T==1))-mean(mean_ep_b_eit(T >= -5 & T <= -1));
+    dVdelta = dVm_sumsub(l+find(T==0))-mean(dVm_sumsub(T >= -5 & T <= -1));
+    dVa(l) = abs(T_step*dVdelta);
+    ep_area(l) = abs(T_step*epdelta);
 end
 dVstruc(1).dV = dV_sumsub;
 dVstruc(1).dVp = dVp_sumsub;
 dVstruc(1).dVa = sum(dVa);
-dVstruc(1).dVpmmin = min(dVpm_sumsub(12620+t_cent_indx-200:12620+t_cent_indx+200)); %finding max dZ within 2 ms window from CAP on last EIT electrode
-dVstruc(1).dVpmmax = max(dVpm_sumsub(12620+t_cent_indx-200:12620+t_cent_indx+200)); %finding max dZ within 2 ms window from CAP on last EIT electrode
-dVstruc(1).dVpmintime = T(12620+t_cent_indx-200+find(dVpm_sumsub(12620+t_cent_indx-200:12620+t_cent_indx+200) <= dVstruc(1).dVpmmin));
-dVstruc(1).dVpmaxtime = T(12620+t_cent_indx-200+find(dVpm_sumsub(12620+t_cent_indx-200:12620+t_cent_indx+200) <= dVstruc(1).dVpmmax));
-dVstruc(1).dVmmin = min(dVm_sumsub(12620+t_cent_indx-200:12620+t_cent_indx+200)); %finding max dZ within 2 ms window from CAP on last EIT electrode
-dVstruc(1).dVmmax = max(dVm_sumsub(12620+t_cent_indx-200:12620+t_cent_indx+200)); %finding max dZ within 2 ms window from CAP on last EIT electrode
-dVstruc(1).dVmintime = T(12620+t_cent_indx-200+find(dVm_sumsub(12620+t_cent_indx-200:12620+t_cent_indx+200) <= dVstruc(1).dVmmin));
-dVstruc(1).dVmaxtime = T(12620+t_cent_indx-200+find(dVm_sumsub(12620+t_cent_indx-200:12620+t_cent_indx+200) <= dVstruc(1).dVmmax));
+dVstruc(1).dVpmmin = min(dVpm_sumsub(find(T==1)+t_cent_indx-200:find(T==1)+t_cent_indx+200)); %finding max dZ within 2 ms window from CAP on last EIT electrode
+dVstruc(1).dVpmmax = max(dVpm_sumsub(find(T==1)+t_cent_indx-200:find(T==1)+t_cent_indx+200)); %finding max dZ within 2 ms window from CAP on last EIT electrode
+dVstruc(1).dVpmintime = T(find(T==1)+t_cent_indx-200+find(dVpm_sumsub(find(T==1)+t_cent_indx-200:find(T==1)+t_cent_indx+200) <= dVstruc(1).dVpmmin));
+dVstruc(1).dVpmaxtime = T(find(T==1)+t_cent_indx-200+find(dVpm_sumsub(find(T==1)+t_cent_indx-200:find(T==1)+t_cent_indx+200) <= dVstruc(1).dVpmmax));
+dVstruc(1).dVmmin = min(dVm_sumsub(find(T==1)+t_cent_indx-200:find(T==1)+t_cent_indx+200)); %finding max dZ within 2 ms window from CAP on last EIT electrode
+dVstruc(1).dVmmax = max(dVm_sumsub(find(T==1)+t_cent_indx-200:find(T==1)+t_cent_indx+200)); %finding max dZ within 2 ms window from CAP on last EIT electrode
+dVstruc(1).dVmintime = T(find(T==1)+t_cent_indx-200+find(dVm_sumsub(find(T==1)+t_cent_indx-200:find(T==1)+t_cent_indx+200) <= dVstruc(1).dVmmin));
+dVstruc(1).dVmaxtime = T(find(T==1)+t_cent_indx-200+find(dVm_sumsub(find(T==1)+t_cent_indx-200:find(T==1)+t_cent_indx+200) <= dVstruc(1).dVmmax));
 
 %% OTHER CALCS
 %{
@@ -242,14 +242,19 @@ colorinc = 0;
 figure;
 set(gca,'FontSize',18)
 hold on
-for v = 1:size(EPall,1)
-    plot(T,(detrend(EPall(v,:,eit_inj_pairs(1)-1)))/1000,'color',[1-colorinc 0 0], 'linewidth',3);
-    colorinc = colorinc + 1/(size(EPall,1));
-end
+%for v = 1:size(EPall,1)
+%    plot(T,(detrend(EPall(v,:,eit_inj_pairs(1)-1)))/1000,'color',[1-colorinc 0 0], 'linewidth',3);
+%    colorinc = colorinc + 1/(size(EPall,1));
+%end
+
+plot(T,detrend(EPall(:,:,3)')/1000,'color',[0.7 0.7 0.7],'linewidth',3);
+
+plot(T,(EP_avg(:,3))/1000,'linewidth',6);
+
 xlabel('Time (ms)','FontSize', 18);
 ylabel('EP (mV)','FontSize', 18);
 xlim(xlims);
-ylim([-15 10]);
+ylim([-8 8]);
 title(sprintf('CAP over all trials on elec %d\n',eit_inj_pairs(1)-1),'FontSize', 18);
 hold off
 drawnow;
@@ -269,11 +274,16 @@ title(sprintf('CAP over all trials on elec %d\n',eit_inj_pairs(2)+1),'FontSize',
 hold off
 drawnow;
 %}
+meowmod = 100*(vdiff_b/BV_mean(eit_inj_pairs(1)-1));
+meowmean = mean(meowmod(T > -80 & T < -20,:));
+meownorm = meowmod - meowmean;
 figure;
 set(gca,'FontSize',18)
 hold on
 plot(T,(dVp_sumsub),'color',[0.7 0.7 0.7],'linewidth', 3);
 plot(T,dVpm_sumsub,'linewidth',6);
+%plot(T,(filtfilt(blp,alp,meownorm)),'color',[0.7 0.7 0.7],'linewidth',3);
+%plot(T,mean(filtfilt(blp,alp,meownorm),2),'linewidth',6);
 %plot(T,(filtfilt(blp,alp,dzdiff_norm)),'color',[0.7 0.7 0.7],'linewidth',3);
 %plot(T,mean(filtfilt(blp,alp,dzdiff_norm),2),'linewidth',6);
 title(sprintf('dVp on elec %d\n',eit_inj_pairs(1)-1),'FontSize', 18);
@@ -284,26 +294,30 @@ xlim(xlims);
 drawnow;
 
 %making the variables easy to read off for importing to spreadsheet
+capmod = filtfilt(blp,alp,dzdiff_norm);
 mean_capmod = mean(filtfilt(blp,alp,dzdiff_norm),2);
 
 if eit_freq < 600 || eit_freq > 900 
     intstuff.max_sumsumdzneg = dVstruc(1).dVpmmin;
+    intstuff.max_sumsubdzuv = dVstruc(1).dVmmin;
     intstuff.sumsubmintime = dVstruc(1).dVpmintime;
 end
 if eit_freq > 600 && eit_freq < 900
     intstuff.max_sumsumdzpos = dVstruc(1).dVpmmax;
     intstuff.sumsubmaxtime = dVstruc(1).dVpmaxtime;
 end
-intstuff.max_capmod = max(mean_capmod(12800:15500));
-intstuff.capmodtime = T(12620+t_cent_indx-200+find(mean_capmod(12620+t_cent_indx-200:12620+t_cent_indx+200) >= intstuff.max_capmod));
-intstuff.sumsubnoise = std(dVpm_sumsub(T > -20 & T < -5,:));
-intstuff.capmodnoise = std(mean_capmod(T > -20 & T < -5,:));
+intstuff.sumsubarea = dVstruc(1).dVa;
+intstuff.max_capmod = max(mean_capmod(T > 3 & T < 30));
+intstuff.capmodtime = T(find(T==1)+t_cent_indx-200+find(mean_capmod(find(T==1)+t_cent_indx-200:find(T==1)+t_cent_indx+200) >= intstuff.max_capmod));
+intstuff.sumsubnoise = mean(max(dVp_sumsub(T > -15 & T < -5,:))-min(dVp_sumsub(T > -15 & T < -5,:)));
+intstuff.capmodnoise = std(capmod(T > -20 & T < -5,:));
 intstuff.max_capbefore = EPstruc(1).EPmaxf;
 intstuff.beicaptime = EPstruc(1).EPmaxftime;
 intstuff.max_capafter = EPstruc(1).EPmaxeit;
 intstuff.eicaptime = EPstruc(1).EPeiteltime;
-intstuff.capnoise = std(mean(ep_b_eit((T > -20 & T < -5),:)));
+intstuff.capnoise = mean(std(ep_b_eit((T > -20 & T < -5),:)));
+intstuff.eparea = sum(ep_area);
 
-
-forplotdvp = dVp_sumsub(12000:16500,:);
-forplotdvpm = dVpm_sumsub(12000:16500);
+forplotdvp = dVp_sumsub(T >= -5 & T <= 40,:);
+forplotdvpm = dVpm_sumsub(T >= -5 & T <= 40);
+forplotepm = mean_ep_b_eit(T >= -5 & T <= 40);

@@ -1,3 +1,4 @@
+clear all
 %% read the data
 % get the voltages on the desired channels out of the EEG structure
 HDR=ScouseTom_getHDR;
@@ -10,13 +11,11 @@ Data(:,18:end) = [] ;
 
 %% Settings - CHANGE THESE FOR YOUR SPECIFIC EXPERIMENTAL PROTOCOL
 good_chn = [3 4 5 6 7 8 9 10 11 12] ; 
-eit_inj_pairs = [8 9];
+eit_inj_pairs = [4 5];
 eit_freq = 225;
-injtime = ; %seconds
-injnum = 5; %injections per second
-
-
-
+eit_bw = 100;
+injtime = 20; %seconds
+injnum = 1; %injections per second
 
 %% Sort the Stimulation Triggers
 j = 1;
@@ -38,22 +37,10 @@ start_trial = 4 ; % trial we want to start with, for some reason the first few a
 
 %% Figuring out Timing Windows
 T_trig = trigbois(1:injnum*injtime,1); % window in ms around event to view
-tau_max = 250; % specify in ms
+tau_max = 500; % specify in ms
 Tmax = mean(floor((diff(T_trig)*1000)))/Fs; % find max timing between stims
 tau = min([ tau_max Tmax]); % choose whichever is smallest
 size_bin=floor(tau*Fs/1000); % convert to the number of samples this is equivalent to
-
-%% Estimate the Carrier Frequency
-%{
-% find first chunk of data
-est_trig = (injtime*injnum)/2; % dont use the first one as sometimes its messed up
-est_seg=detrend(Data(floor(T_trig(est_trig)*0.99):ceil(T_trig(est_trig+1)*1.01),:));
-
-%find the carrier using this chunk
-Fc_est = ScouseTom_data_GetCarrier(est_seg(:,eit_inj_pairs(1)),Fs);
-Fc = round(Fc_est);
-Fc = 225;
-%}
 
 %% Filtering EPs from Raw Data
 %[bep aep] = butter(3,100/(Fs/2),'low'); % 100 Hz lowpass filter
@@ -63,22 +50,6 @@ Fc = 225;
 DataF_EPlpn = filtfilt(bepn,aepn,Data); % apply EIT frequency specific notch filter
 DataF_EP = filtfilt(bepnf,aepnf,DataF_EPlpn); % apply 50 Hz notch filter
 
-%{
-BW = 100;
-N = 2;
-F6dB1 = Fc-BW;
-F6dB2 = Fc+BW;
-FiltBPq = designfilt('bandpassiir', ...       % Response type
-    'FilterOrder',N, ...            % Filter order
-    'HalfPowerFrequency1',F6dB1, ...    % Frequency constraints
-    'HalfPowerFrequency2',F6dB2, ...
-    'DesignMethod','Butter', ...         % Design method
-    'SampleRate',Fs);
-
-disp('Filtering for EIT');
-
-DataF_EIT=ScouseTom_data_DemodHilbert(Data,FiltBPq);
-%}
 %% Segmenting Data
 T = (1:size_bin)*1000/Fs; % make a time vector
 T = T - T(round(length(T)/2));
@@ -100,12 +71,7 @@ end
 
 % average all the EP chunks across repeats of EPs
 EP_avg=detrend(squeeze(mean(EPall(start_trial:end,:,:),1)));
-%EIT_avg=detrend(squeeze(mean(EITall(start_trial:end,:,:),1)));
 
-% find 
-%EIT_BV=squeeze(mean(EITall(start_trial:end, T > -100 & T < -30,:),2));
-%EIT_BVm=mean(EIT_BV);
-%EIT_BVstd=std(EIT_BV);
 %% Find the BVs
 
 for i = 1:size(Data_seg,3)
@@ -119,12 +85,9 @@ end
 %% EIT Set-up
 
 Y = Data_seg(:,:,eit_inj_pairs(1)-1)'; % choose the data at the artifact free recording electrode
-% make the size even if it is not
-if mod(size(Y,2),2)==1
-    Y = Y(:,2:end);
-end
+
 % Band pass filtering
-BW = 100; % bandwidth
+BW = eit_bw; % bandwidth
 Fc = eit_freq; % center frequency
 F6dB1=Fc-BW; % calculated center frequency minus bandwidth
 F6dB2=Fc+BW; % calculated center frequency plus bandwidth
@@ -135,75 +98,12 @@ Y_bp=filtfilt(bbp,abp,Y); % filter the data with the bandpass
 % frequency noise that can throw off the pairing
 
 
-hupper_sumsub = abs(hilbert(Y_bp)); % take the hilbert transform (i.e. envelope) of the paired signals
-BV_u_sumsub= mean(hupper_sumsub(T > - 80 & T < -20,:)); % find the mean of the boundary voltages for each pair
-dV_sumsub=hupper_sumsub-BV_u_sumsub; % normalize the hilbert transform by the boundary voltage 
-dVm_sumsub=mean(dV_sumsub,2); % find the mean normalized hilbert transform
-dVp_sumsub=100*(dV_sumsub./BV_u_sumsub); % express the voltage as percentage change
-dVpm_sumsub=mean(dVp_sumsub,2); % find the mean percentage change
-
-mep_a_eit = mean(EPall(:,(T > - 80 & T < -20),6)');
-mep_b_eit = mean(EPall(:,(T > - 80 & T < -20),3)');
-ep_b_eit = EPall(:,:,3)' - mep_b_eit;
-ep_a_eit = EPall(:,:,6)' - mep_a_eit;
-% set up to match the phases in the randomized summation subtraction
-
-coun = 1;
-for i = 2:2:size(Y,2)-1
-        vdiff_b(:,coun) = (ep_b_eit(:,i+1)-ep_b_eit(:,i))/2;
-        dzdiff_b(:,coun) = 100*(vdiff_b(:,coun)/BV_mean(eit_inj_pairs(1)-1));
-        coun = coun + 1;
-end
-hupper_dzdiff = abs(hilbert(dzdiff_b));
-figure;
-hold on
-plot(T,(hupper_dzdiff),'color',[0.7 0.7 0.7]);
-plot(T,mean(hupper_dzdiff,2),'linewidth',3);
-xlim(xlims);
-%{
-%% EIT with Random Phase
-dV_sig_orig = Y;
-
-figure;
-plot(T,Y);
-title('Pre Bandpass Signal');
-xlim(xlims);
-
-drawnow;
-
-BW = 100;
-Fc = eit_freq;
-N=1000;
-F6dB1=Fc-BW;
-F6dB2=Fc+BW;
-
-[bbp,abp] = butter(3,[F6dB1 F6dB2]/(Fs/2));
-
-
-dV_sigF=filtfilt(bbp,abp,dV_sig_orig);
-
-figure;
-plot(T,dV_sigF);
-title('Post Bandpass Signal');
-xlim(xlims);
-
-drawnow;
-
-hupper = abs(hilbert(dV_sigF));
-
-figure;
-plot(T,hupper);
-title('Post Hilbert Transform Signal');
-xlim(xlims);
-drawnow;
-
-BV_u= mean(hupper(T > - 80 & T < -20,:));
-
-dV=hupper-BV_u;
-dVm=mean(dV,2);
-
-dVp=100*(dV./BV_u);
-dVpm=mean(dVp,2);
+hupper = abs(hilbert(Y_bp)); % take the hilbert transform (i.e. envelope) of the paired signals
+BV_u= mean(hupper(T > - 80 & T < -20,:)); % find the mean of the boundary voltages for each pair
+dV=hupper-BV_u; % normalize the hilbert transform by the boundary voltage 
+dVm=mean(dV,2); % find the mean normalized hilbert transform
+dVp=100*(dV./BV_u); % express the voltage as percentage change
+dVpm=mean(dVp,2); % find the mean percentage change
 
 figure
 hold on
@@ -217,102 +117,5 @@ xlim(xlims);
 ylim([-0.4 0.4]);
 
 drawnow;
-%{
-figure;
-colorinc = 0;
-hold on
-for v = 1:size(dVp,2)
-    plot(T,dVp(:,v),'color',[0 0 1-colorinc]);
-    colorinc = colorinc + 1/(size(dVp,2));
-    
-    ylabel('%');
-    xlabel('T ms');
-    xlim(xlims);
-    ylim([-2 2]);
-    drawnow;
-    pause(0.5);
-end
-  %}  
-%}
 
-%% Plotting Everything
-figure;
 
-subplot(2,1,1);
-hold on
-title(sprintf('Simple Coherent Averaging of EP - Trial: %d\n',i));
-h1=plot(T,EP_avg(:,good_chn),'linewidth',3);
-
-xlabel('Time ms');
-ylabel('EP uv');
-xlim(xlims)
-
-ep_y_max = round(max(max((1000+EP_avg( T > 2 & T <xlims(2),good_chn)))),-2);
-ep_y_min = -round(max(max((1000-EP_avg( T > 2 & T <xlims(2),good_chn)))),-2);
-ylim([ep_y_min ep_y_max])
-
-legend(h1,HDR.Label{good_chn})
-
-subplot(2,1,2)
-errorbar(BV_mean/1000,BV_std/1000);
-xlabel('Electrode');
-ylabel('BV mV')
-title('Boundary Voltages')
-drawnow
-
-colorinc = 0;
-figure;
-hold on
-for v = 1:size(EPall,1)
-    plot(T,detrend(EPall(v,:,eit_inj_pairs(1)-1)),'color',[1-colorinc 0 0]);
-    colorinc = colorinc + 1/(size(EPall,1));
-end
-xlabel('Time ms');
-ylabel('EP uv');
-xlim(xlims);
-title(sprintf('CAP over all trials on elec %d\n',eit_inj_pairs(1)-1));
-hold off
-drawnow;
-
-colorinc = 0;
-figure;
-hold on
-for v = 1:size(EPall,1)
-    plot(T,detrend(EPall(v,:,eit_inj_pairs(2)+1)),'color',[1-colorinc 0 0]);
-    colorinc = colorinc + 1/(size(EPall,1));
-end
-xlabel('Time ms');
-ylabel('EP uv');
-xlim(xlims);
-title(sprintf('CAP over all trials on elec %d\n',eit_inj_pairs(2)+1));
-hold off
-drawnow;
-    
-figure;
-plot(T,Y);
-title('Pre Bandpass Signal');
-xlim(xlims);
-drawnow;    
-    
-figure;
-plot(T,dV_sigF_sumsub);
-title('Post Bandpass Subtracted Signal');
-xlim(xlims);
-drawnow;
-
-figure;
-plot(T,hupper_sumsub);
-title('Post Hilbert Transform Signal');
-xlim(xlims);
-drawnow;
-
-figure;
-hold on
-plot(T,(dVp_sumsub),'color',[0.7 0.7 0.7]);
-plot(T,dVpm_sumsub,'linewidth',3);
-title(sprintf('dVp on elec %d\n',eit_inj_pairs(1)-1));
-ylabel('%');
-xlabel('T ms');
-hold off
-xlim(xlims);
-drawnow;

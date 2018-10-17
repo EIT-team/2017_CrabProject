@@ -1,3 +1,4 @@
+clear all
 %% Read the data
 HDR=ScouseTom_getHDR;
 [~, fname]=fileparts(HDR.FileName);
@@ -8,7 +9,7 @@ Data = sread(HDR,inf,0); % Read all data from all electrodes
 Data(:,18:end) = []; % Truncate electrodes you are not using (speeds it up)
 %% Settings - CHANGE THESE FOR YOUR SPECIFIC EXPERIMENTAL PROTOCOL
 good_chn = [3 4]; % Channels for Analysis 
-injtime = 9; % Total time of recording
+injtime = 10; % Total time of recording
 injnum = 1; % Number of injections per second
 start_trial = 2 ; % Typically we start on the second one to disregard anything weird with timing on the first
 %% Sort the Stimulation Triggers
@@ -47,7 +48,7 @@ EPamp_t = zeros(size(T,2),3);
 EPamp_f = zeros(size(T,2),3);
 % Calculate the average value of the data before stim event for the first
 % channel
-pstim_line_t(size(EP_avg(:,good_chn(1))),1) = mean(EP_avg(12000:12400,good_chn(1)));
+pstim_line_t(size(EP_avg(:,good_chn(1))),1) = mean(EP_avg(T > - 5 & T < -1,good_chn(1)));
 % Calculate the areas of the different sections
 for l=1:5500 % Only calculating from 0 to 50 milliseconds after stim -- YOU WILL NEED TO CHANGE IF YOU NEED BIGGER VIEW 
     i = l + 12000; % Dummy variable for keeping index right
@@ -164,3 +165,6 @@ xlim(xlims)
 ep_y_max = round(max(max((1000+EP_avg( T > 2 & T <xlims(2),good_chn)))),-2);
 ep_y_min = -round(max(max((1000-EP_avg( T > 2 & T <xlims(2),good_chn)))),-2);
 ylim([ep_y_min ep_y_max])
+
+forplotEP = EP_avg(T >= -5 & T <= 40,good_chn(1));
+forplotT = T(T >= -5 & T <= 40)';
