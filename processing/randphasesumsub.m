@@ -8,15 +8,15 @@ Trigger=ScouseTom_TrigReadChn(HDR);
 TT=ScouseTom_TrigProcess(Trigger,HDR);
 Fs=HDR.SampleRate;
 Data = sread(HDR,inf,0);
-Data(:,22:end) = [];
+Data(:,27:end) = [];
 
 %% Settings - CHANGE THESE FOR YOUR SPECIFIC EXPERIMENTAL PROTOCOL
 good_chn = [3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19] ; 
 eit_inj_pairs = [4 5];
-injtime = 30; % Total time of recording
+injtime = 10; % Total time of recording
 injnum = 1; % Number of injections per second
-eit_freq = 3000;
-eit_bw = 200;%eit_freq - 125;
+eit_freq = 225;
+eit_bw = 100;%eit_freq - 125;
 eit_cur = 10;
 %% Sort the Stimulation Triggers
 j = 1;
@@ -43,8 +43,7 @@ tau = min([tau_max Tmax]); % choose whichever is smallest
 size_bin=floor(tau*Fs/1000); % convert to the number of samples this is equivalent to
 
 %% Filtering EPs from Raw Data
-
-[bepn aepn] = iirnotch(eit_freq/(Fs/2),1.2857e-04);%(eit_freq/(Fs/2))/35); % EIT frequency specific notch filter
+[bepn aepn] = iirnotch(eit_freq/(Fs/2),1.2857e-04);%butter(3,[(eit_freq-20)/(Fs/2) (eit_freq+20)/(Fs/2)],'stop')%%(eit_freq/(Fs/2))/35); % EIT frequency specific notch filter
 [bepnf aepnf] = iirnotch(50/(Fs/2),(50/(Fs/2))/35); % 50 Hz notch filter
 DataF_EPlpn = filtfilt(bepn,aepn,Data); % apply EIT frequency specific notch filter
 DataF_EP = filtfilt(bepnf,aepnf,DataF_EPlpn); % apply 50 Hz notch filter
@@ -77,8 +76,8 @@ for i = 1:size(Data_seg,3)
 end
 
 %% EIT Set-up
-Y = Data_seg(:,:,eit_inj_pairs(1)-1)'; % choose the data at the artifact free recording electrode
-Y_a = Data_seg(:,:,eit_inj_pairs(2)+1)';
+Y = detrend(squeeze(Data_seg(:,:,eit_inj_pairs(1)-1)')); % choose the data at the artifact free recording electrode
+Y_a = detrend(squeeze(Data_seg(:,:,eit_inj_pairs(2)+1)'));
 % make the size even if it is not
 if mod(size(Y,2),2)==1
     Y = Y(:,2:end);
@@ -87,6 +86,7 @@ end
 
 mY = mean(Y((T > - 80 & T < -20),:),1);
 Y_bp = Y - mY;
+
 % Band pass filtering
 Fc = eit_freq; % center frequency
 BW = eit_bw; % bandwidth
@@ -127,18 +127,20 @@ for i = start_trial:2:size(Y,2)-1
         [~,I_b] = max(abs(r_b));
         lagDiff_b(coun) = lag_b(I_b)/Fs;
         % make sure that the phase difference is 180
-        if phase_diff(coun) <= 190 && phase_diff(coun) >= 160
+        %if phase_diff(coun) <= 190 && phase_diff(coun) >= 160
+            meowsig = ep_b_eit(:,i)-ep_b_eit(:,i+1);
             testsig = abs(ep_b_eit(:,i)-ep_b_eit(:,i+1));
             %vdiff_b(:,coun) = abs(ep_b_eit(:,i)-ep_b_eit(:,i+1));
             threshmax = mean(max(testsig((T > - 80 & T < -20))));
             %testsig(testsig < threshmax) = 0;
             %testsig((T > -124 & T < 2)) = 0;
             vdiff_b(:,coun) = testsig;
+            vdiff_c(:,coun) = meowsig;
             dzdiff_b(:,coun) = 100*(vdiff_b(:,coun)/BV_mean(eit_inj_pairs(1)-1));
             dV_sigF_sumsub(:,coun) = (Y_bp(:,i+1)-Y_bp(:,i))/2;
             coun = coun + 1;
-        end
-end
+        %end
+end 
 
 hupper_dzdiff = abs(hilbert(dzdiff_b));
 BV_u_dzdiff = mean(hupper_dzdiff(T > -80 & T < -20,:));
@@ -278,7 +280,7 @@ meowmod = 100*(vdiff_b/BV_mean(eit_inj_pairs(1)-1));
 meowmean = mean(meowmod(T > -80 & T < -20,:));
 meownorm = meowmod - meowmean;
 figure;
-set(gca,'FontSize',18)
+set(gca,'FontSize',16)
 hold on
 plot(T,(dVp_sumsub),'color',[0.7 0.7 0.7],'linewidth', 3);
 plot(T,dVpm_sumsub,'linewidth',6);
@@ -321,3 +323,8 @@ intstuff.eparea = sum(ep_area);
 forplotdvp = dVp_sumsub(T >= -5 & T <= 40,:);
 forplotdvpm = dVpm_sumsub(T >= -5 & T <= 40);
 forplotepm = mean_ep_b_eit(T >= -5 & T <= 40);
+s = 0;
+%for j = 1:size(dV_sigF_sumsub,2)
+%    forfiltsumsub(1+s:50000+s,1) = detrend(dV_sigF_sumsub(:,j));
+%    s = s + 50000;
+%end

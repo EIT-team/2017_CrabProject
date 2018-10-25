@@ -33,7 +33,7 @@ end
 %% Other Settings - No need to change
 xlims = [-5 40];
 other_chn = 1:size(Data,2) ;
-start_trial = 4 ; % trial we want to start with, for some reason the first few are fucked
+%start_trial = 4 ; % trial we want to start with, for some reason the first few are fucked
 
 %% Figuring out Timing Windows
 T_trig = trigbois(1:injnum*injtime,1); % window in ms around event to view
@@ -70,7 +70,7 @@ end
 %% Average the EPs 
 
 % average all the EP chunks across repeats of EPs
-EP_avg=detrend(squeeze(mean(EPall(start_trial:end,:,:),1)));
+%EP_avg=detrend(squeeze(mean(EPall(start_trial:end,:,:),1)));
 
 %% Find the BVs
 
