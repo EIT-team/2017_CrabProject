@@ -10,7 +10,7 @@ Data = sread(HDR,inf,0) ;
 Data(:,18:end) = [] ;
 
 %% Settings - CHANGE THESE FOR YOUR SPECIFIC EXPERIMENTAL PROTOCOL
-good_chn = [3 4 5 6 7 8 9 10 11 12] ; 
+good_chn = [3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19] ; 
 eit_inj_pairs = [4 5];
 eit_freq = 225;
 eit_bw = 100;
@@ -43,12 +43,14 @@ tau = min([ tau_max Tmax]); % choose whichever is smallest
 size_bin=floor(tau*Fs/1000); % convert to the number of samples this is equivalent to
 
 %% Filtering EPs from Raw Data
-%[bep aep] = butter(3,100/(Fs/2),'low'); % 100 Hz lowpass filter
-[bepn aepn] = iirnotch(eit_freq/(Fs/2),(eit_freq/(Fs/2))/35); % EIT frequency specific notch filter
+[bepn, aepn] = iirnotch(eit_freq/(Fs/2),1.2857e-04);%butter(3,[(eit_freq-20)/(Fs/2) (eit_freq+20)/(Fs/2)],'stop')%%(eit_freq/(Fs/2))/35); % EIT frequency specific notch filter
 [bepnf aepnf] = iirnotch(50/(Fs/2),(50/(Fs/2))/35); % 50 Hz notch filter
-%DataF_EPlp = filtfilt(bep,aep,Data); % apply lowpass filter
-DataF_EPlpn = filtfilt(bepn,aepn,Data); % apply EIT frequency specific notch filter
-DataF_EP = filtfilt(bepnf,aepnf,DataF_EPlpn); % apply 50 Hz notch filter
+[beplp, aeplp] = butter(3,(3000)/(Fs/2),'low');
+[bephp, aephp] = butter(3,(10)/(Fs/2),'high');
+DataF_EPlp = filtfilt(beplp, aeplp, detrend(squeeze(Data)));
+DataF_EPhp = filtfilt(bephp, aephp, DataF_EPlp);
+DataF_EPeitn = filtfilt(bepn,aepn,DataF_EPhp); % apply EIT frequency specific notch filter
+DataF_EP = filtfilt(bepnf,aepnf,DataF_EPeitn); % apply 50 Hz notch filter
 
 %% Segmenting Data
 T = (1:size_bin)*1000/Fs; % make a time vector
@@ -84,7 +86,7 @@ end
 
 %% EIT Set-up
 
-Y = Data_seg(:,:,eit_inj_pairs(1)-1)'; % choose the data at the artifact free recording electrode
+Y = detrend(squeeze(Data_seg(:,:,eit_inj_pairs(1)-1)')); % choose the data at the artifact free recording electrode
 
 % Band pass filtering
 BW = eit_bw; % bandwidth

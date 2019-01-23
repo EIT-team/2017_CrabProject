@@ -8,8 +8,8 @@ Fs=HDR.SampleRate; % Sampling Frequency
 Data = sread(HDR,inf,0); % Read all data from all electrodes
 Data(:,18:end) = []; % Truncate electrodes you are not using (speeds it up)
 %% Settings - CHANGE THESE FOR YOUR SPECIFIC EXPERIMENTAL PROTOCOL
-good_chn = [3 4]; % Channels for Analysis 
-injtime = 10; % Total time of recording
+good_chn = [8 16]; % Channels for Analysis 
+injtime = 19; % Total time of recording
 injnum = 1; % Number of injections per second
 start_trial = 2 ; % Typically we start on the second one to disregard anything weird with timing on the first
 %% Sort the Stimulation Triggers
