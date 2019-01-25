@@ -11,10 +11,10 @@ Data(:,18:end) = [] ;
 
 %% Settings - CHANGE THESE FOR YOUR SPECIFIC EXPERIMENTAL PROTOCOL
 good_chn = [3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19] ; 
-eit_inj_pairs = [4 5];
-eit_freq = 225;
-eit_bw = 100;
-injtime = 20; %seconds
+eit_inj_pairs = [11 12];
+eit_freq = 9000;
+eit_bw = 6000;
+injtime = 18; %seconds
 injnum = 1; %injections per second
 
 %% Sort the Stimulation Triggers
@@ -117,7 +117,7 @@ xlabel('T ms');
 hold off
 xlim(xlims);
 ylim([-0.4 0.4]);
-
+set(gca,'FontSize',16)
 drawnow;
 
 

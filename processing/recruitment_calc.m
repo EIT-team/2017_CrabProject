@@ -9,7 +9,7 @@ Data = sread(HDR,inf,0); % Read all data from all electrodes
 Data(:,18:end) = []; % Truncate electrodes you are not using (speeds it up)
 %% Settings - CHANGE THESE FOR YOUR SPECIFIC EXPERIMENTAL PROTOCOL
 good_chn = [8 16]; % Channels for Analysis 
-injtime = 19; % Total time of recording
+injtime = 20; % Total time of recording
 injnum = 1; % Number of injections per second
 start_trial = 2 ; % Typically we start on the second one to disregard anything weird with timing on the first
 %% Sort the Stimulation Triggers
@@ -22,9 +22,11 @@ tau_max = 250; % specify in ms
 Tmax = mean(floor((diff(T_trig)*1000)))/Fs; % find max timing between stims
 tau = min([ tau_max Tmax]); % choose whichever is smallest
 size_bin=floor(tau*Fs/1000); % convert to the number of samples this is equivalent to
+
 %% Handing EP Data
 [bepnf aepnf] = iirnotch(50/(Fs/2),(50/(Fs/2))/35); % 50 Hz notch filter
 DataF_EP = filtfilt(bepnf,aepnf,Data); % apply 50 Hz notch filter
+
 %% Segmenting Data
 T = (1:size_bin)*1000/Fs; % make a time vector
 T = T - T(round(length(T)/2));
